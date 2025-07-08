@@ -4,7 +4,7 @@ build-backend = "hatchling.build"
 
 [project]
 name = "pdf-to-audio"
-version = "0.1.1"
+version = "0.1.2"
 description = "A tool to convert PDFs to TTS-friendly text using Mistral API"
 authors = [
     {name = "sjvrensburg", email = "stefanj@mandela.ac.za"}

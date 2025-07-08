@@ -5,6 +5,7 @@ MAX_TOKENS = 4000  # Adjust based on model's token limit
 MAX_RETRIES = 3
 RETRY_WAIT_MIN = 4  # seconds
 RETRY_WAIT_MAX = 10  # seconds
+TEMPERATURE = 0.15  # temperature parameter for randomness in responses
 
 # Optimized System Prompt for TTS Transformation of Academic Papers
 SYSTEM_PROMPT = r"""
@@ -28,9 +29,11 @@ SYSTEM_PROMPT = r"""
         -   \( a \times b \) or \( a \cdot b \) → "a times b"
         -   \( a / b \) → "a divided by b"
 
-    -   **Equations:** Convert equations into natural language, stating "equals" clearly:
+    -   **Equations:** Convert equations into natural language, stating "equals" clearly. For numbered equations, you **must** prepend the verbalized equation with "Equation [number]:" as a distinct phrase. Do not place the number in parentheses at the end.
         -   \( E = mc^2 \) → "E equals m c squared"
         -   \( a^2 + b^2 = c^2 \) → "a squared plus b squared equals c squared"
+        -   *Incorrect Example:* "...equals f of a" (1)
+        -   *Correct Example:* "Equation 1: ...equals f of a"
 
     -   **Fractions:** Use "over" for fractions, spell out numerator and denominator:
         -   \( \frac{a}{b} \) → "a over b"
@@ -70,6 +73,8 @@ SYSTEM_PROMPT = r"""
         -   \( x \in A \) → "x is an element of A"
         -   \( A \cup B \) → "A union B"
         -   \( A \cap B \) → "A intersection B"
+        -   \( \mathbb{R} \) → "the set of real numbers" or "real numbers" (context dependent)
+        -   \( \mathbb{R}_+ \) → "the set of positive real numbers" or "positive real numbers" (context dependent)
 
     -   **Greek Letters:** Always spell out Greek letters phonetically:
         -   \( \alpha \) → "alpha"
@@ -108,7 +113,7 @@ SYSTEM_PROMPT = r"""
         -   \( \mathbf{v} \) → "vector v"
         -   \( \det(A) \) → "the determinant of A"
         -   \( A^T \) → "A transpose"
-        -   For dimensions, e.g., a "3 by 3 matrix".
+        -   For dimensions, e.g., "a 3 by 3 matrix".
 
     -   **Special Functions:** State the function name and argument:
         -   \( \sin(x) \) → "sine of x"
@@ -118,12 +123,18 @@ SYSTEM_PROMPT = r"""
         -   \( \log(x) \) → "log of x"
         -   \( \exp(x) \) → "exponential of x"
 
+    -   **Statistical/Probability Notation:**
+        -   \( \mathbb{E}[X] \) → "the expected value of X"
+        -   \( \mathbb{E}[|X_t|] \) → "the expected value of the absolute value of X sub t"
+        -   \( \mathbb{E}[X_t|\mathcal{F}_s] \) → "the expected value of X sub t given script capital F sub s"
+        -   \( P(A|B) \) → "the probability of A given B"
+
 2.  **Document Structure Preservation (Critical):**
     * **Headers**: Transform section headers precisely as "Section [number]: [title]".
     * **Paragraphs**: Maintain all original paragraph breaks and overall text structure.
     * **Numbered Elements**:
-        * Equations: Announce as "Equation [number]:"
-        * Figures: Announce as "Figure [number]: [caption]".
+        * Equations: Refer to the "Equations" guideline above for specific formatting ("Equation [number]:").
+        * Figures: When a figure is referenced in the text, announce it at the point of reference or immediately after its first mention, using "Figure [number]: [caption]". Do not place figure captions in the middle of unrelated paragraphs if they are referred to elsewhere.
         * Tables: Announce as "Table [number]: [caption]".
 
 3.  **Table Handling (Specific and Detailed):**
@@ -135,7 +146,7 @@ SYSTEM_PROMPT = r"""
 **General Rules (Non-Negotiable):**
 
 * **Unambiguous Language**: Use only clear, unambiguous language throughout the entire output.
-* **Technical Precision**: Maintain the exact technical precision of the original academic paper. Do not simplify or generalize concepts.
+* **Technical Precision**: Maintain the exact technical precision of the original academic paper. Do not simplify or generalize concepts. Prioritize standard academic and mathematical phrasing over colloquial or simplified descriptions.
 * **Academic Tone**: The output must retain a formal, academic tone consistent with the source material.
 * **Consistent Formatting**: Ensure consistent line breaks, spacing, and overall formatting for optimal readability and auditory flow.
 * **Avoid Over-Complexity**: While comprehensive, avoid overly complex nested descriptions that would hinder audio comprehension. If an expression is very complex, break it into logical, smaller, speakable parts *without losing meaning*.

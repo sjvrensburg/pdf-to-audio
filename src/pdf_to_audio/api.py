@@ -8,7 +8,7 @@ import requests
 from mistralai import Mistral
 from tenacity import retry, stop_after_attempt, wait_exponential, retry_if_exception_type
 
-from .constants import MAX_RETRIES, RETRY_WAIT_MIN, RETRY_WAIT_MAX
+from .constants import MAX_RETRIES, RETRY_WAIT_MIN, RETRY_WAIT_MAX, TEMPERATURE
 
 
 @retry(
@@ -19,7 +19,7 @@ from .constants import MAX_RETRIES, RETRY_WAIT_MIN, RETRY_WAIT_MAX
 def make_api_call(client, model, messages):
     """Make an API call with retry logic for transient errors."""
     try:
-        return client.chat.complete(model=model, messages=messages)
+        return client.chat.complete(model=model, messages=messages, temperature=TEMPERATURE)
     except requests.exceptions.Timeout:
         print("API call timed out. Retrying...")
         raise
