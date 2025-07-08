@@ -5,7 +5,7 @@ A powerful command-line tool that converts PDF documents to TTS-friendly text an
 ## Features
 
 - **OCR Processing**: Extracts text from PDF files using Mistral's OCR API
-- **Mathematical Notation**: Converts LaTeX math expressions to spoken language
+- **Mathematical Notation**: Converts LaTeX math expressions to spoken language with specialized TTS settings
 - **Image Descriptions**: Optional processing of figures, charts, and diagrams
 - **Chunked Processing**: Handles large documents efficiently
 - **Customizable Models**: Choose different Mistral models for text and image processing
@@ -14,6 +14,10 @@ A powerful command-line tool that converts PDF documents to TTS-friendly text an
 - **Audio Post-Processing**: Volume normalization, natural pauses, and noise reduction
 - **Multiple Audio Formats**: Support for WAV, MP3, FLAC, OGG, and M4A formats
 - **Intelligent Text Chunking**: Smart chunking strategies for optimal audio generation
+- **Math-Specific TTS Settings**: Different TTS parameters for mathematical content
+- **Customizable System Prompt**: Override the default system prompt with your own
+- **Configuration File Support**: Use YAML configuration files for persistent settings
+- **Robust Temporary File Handling**: Secure and automatic cleanup of temporary files
 - **CLI Interface**: Easy-to-use command-line interface
 
 ## Installation
@@ -82,11 +86,26 @@ pdf-to-audio input.pdf --output_audio output.mp3 --voice voice_sample.wav
 # Generate audio with custom TTS settings
 pdf-to-audio input.pdf --output_audio output.mp3 --exaggeration 0.7 --cfg_weight 0.3
 
+# Use math-specific TTS settings
+pdf-to-audio input.pdf --output_audio output.mp3 --math_exaggeration 0.4 --math_cfg_weight 0.6
+
+# Adjust the math TTS scaling factor
+pdf-to-audio input.pdf --output_audio output.mp3 --math_tts_scale 0.8
+
 # Use a specific audio format
 pdf-to-audio input.pdf --output_audio output.flac --audio_format flac
 
 # Use a specific chunking strategy for audio
 pdf-to-audio input.pdf --output_audio output.mp3 --chunk_strategy sentences
+
+# Use a custom system prompt
+pdf-to-audio input.pdf output.txt --system_prompt "Your custom system prompt here"
+
+# Use a configuration file
+pdf-to-audio input.pdf output.txt --config_file my_config.yaml
+
+# Specify a custom temporary directory
+pdf-to-audio input.pdf --output_audio output.mp3 --temp_dir /path/to/temp/dir
 
 # Verbose output for debugging
 pdf-to-audio input.pdf output.txt --verbose
@@ -121,6 +140,87 @@ pdf-to-audio --list_models
 pdf-to-audio --list_audio_formats
 ```
 
+## Configuration File
+
+You can use a YAML configuration file to store your settings. This is especially useful if you have a set of preferred settings that you use frequently. The configuration file can be specified using the `--config_file` option.
+
+An example configuration file is provided in the repository as `config.example.yaml`. You can copy this file and modify it to suit your needs.
+
+```yaml
+# Example configuration file for pdf-to-audio
+
+# Mistral API settings
+mistral:
+  # Model for text processing
+  text_model: "mistral-small-latest"
+  
+  # Model for image processing (if include_images is true)
+  image_model: "pixtral-12b-latest"
+  
+  # Temperature parameter for randomness in responses (0.0-1.0)
+  temperature: 0.2
+  
+  # Custom system prompt (if not provided, the default one will be used)
+  # system_prompt: |
+  #   Your custom system prompt here.
+  #   You can use multiple lines.
+
+# Text-to-Speech settings
+tts:
+  # TTS exaggeration level (0.0-1.0)
+  exaggeration: 0.5
+  
+  # CFG weight for TTS (0.0-1.0)
+  cfg_weight: 0.5
+  
+  # TTS exaggeration level for mathematical content (0.0-1.0)
+  # If not provided, defaults to math_tts_scale * exaggeration
+  # math_exaggeration: 0.375
+  
+  # CFG weight for TTS for mathematical content (0.0-1.0)
+  # If not provided, defaults to math_tts_scale * cfg_weight
+  # math_cfg_weight: 0.375
+  
+  # Scaling factor for math TTS settings relative to plain text settings
+  math_tts_scale: 0.75
+  
+  # Output audio format (wav, mp3, flac, ogg, m4a)
+  audio_format: "wav"
+  
+  # Text chunking strategy for audio generation (duration, sentences, smart)
+  chunk_strategy: "smart"
+  
+  # Path to a .wav file for voice cloning
+  # voice_path: "/path/to/voice.wav"
+
+# General settings
+general:
+  # Directory to use for temporary files
+  # If not provided, system temp directory will be used
+  # temp_dir: "/path/to/temp/dir"
+  
+  # Number of pages to process at a time
+  pages_per_chunk: 1
+  
+  # Include image descriptions in the output
+  include_images: false
+  
+  # Overwrite output files if they exist
+  overwrite: false
+  
+  # Enable verbose output for debugging
+  verbose: false
+  
+  # Force using CPU for TTS even if GPU is available
+  force_cpu: false
+```
+
+## Mathematical Content Processing
+
+The tool now automatically identifies mathematical content in the text and applies specialized TTS settings to it. This is done by instructing the Mistral AI model to tag mathematical content with `<MATH>` and `</MATH>` markers.
+
+By default, mathematical content is processed with TTS settings that are 75% of the values used for regular text. This can be adjusted using the `--math_tts_scale` option, or by setting specific values with `--math_exaggeration` and `--math_cfg_weight`.
+
 ### Command-Line Options
 
 #### PDF Processing Options
@@ -139,11 +239,17 @@ pdf-to-audio --list_audio_formats
 - `--remove_voice`: Remove a registered voice by name
 - `--exaggeration`: TTS exaggeration level (0.0-1.0, default: 0.5)
 - `--cfg_weight`: CFG weight for TTS (0.0-1.0, default: 0.5)
+- `--math_exaggeration`: TTS exaggeration level for mathematical content (0.0-1.0)
+- `--math_cfg_weight`: CFG weight for TTS for mathematical content (0.0-1.0)
+- `--math_tts_scale`: Scaling factor for math TTS settings (default: 0.75)
 - `--audio_format`: Output audio format (wav, mp3, flac, ogg, m4a)
 - `--chunk_strategy`: Text chunking strategy (duration, sentences, smart)
 - `--force_cpu`: Force using CPU for TTS even if GPU is available
 
 #### General Options
+- `--config_file`: Path to a YAML configuration file with custom settings
+- `--system_prompt`: Custom system prompt to override the default one
+- `--temp_dir`: Directory to use for temporary files
 - `--overwrite`: Overwrite output files if they exist
 - `--list_models`: List available Mistral models and exit
 - `--list_audio_formats`: List supported audio formats and exit
