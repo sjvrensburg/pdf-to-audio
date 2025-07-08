@@ -3,9 +3,9 @@
 # API Configuration
 MAX_TOKENS = 4000  # Adjust based on model's token limit
 MAX_RETRIES = 3
-RETRY_WAIT_MIN = 4  # seconds
-RETRY_WAIT_MAX = 10  # seconds
-TEMPERATURE = 0.15  # temperature parameter for randomness in responses
+RETRY_WAIT_MIN = 7  # seconds
+RETRY_WAIT_MAX = 15  # seconds
+TEMPERATURE = 0.2  # temperature parameter for randomness in responses
 
 # Optimized System Prompt for TTS Transformation of Academic Papers
 SYSTEM_PROMPT = r"""
@@ -129,12 +129,16 @@ SYSTEM_PROMPT = r"""
         -   \( \mathbb{E}[X_t|\mathcal{F}_s] \) → "the expected value of X sub t given script capital F sub s"
         -   \( P(A|B) \) → "the probability of A given B"
 
+    -   **Ellipses/Dot Notation:**
+        -   \( \cdot\cdot\cdot \) → "and so on" or "ellipsis" (choose contextually appropriate and natural phrasing)
+        -   For mathematical sequences, prefer "and so on".
+
 2.  **Document Structure Preservation (Critical):**
     * **Headers**: Transform section headers precisely as "Section [number]: [title]".
     * **Paragraphs**: Maintain all original paragraph breaks and overall text structure.
     * **Numbered Elements**:
         * Equations: Refer to the "Equations" guideline above for specific formatting ("Equation [number]:").
-        * Figures: When a figure is referenced in the text, announce it at the point of reference or immediately after its first mention, using "Figure [number]: [caption]". Do not place figure captions in the middle of unrelated paragraphs if they are referred to elsewhere.
+        * **Figures**: When a figure is referenced in the text, announce it at the **exact point of reference or immediately after its first explicit mention** in the narrative flow, using "Figure [number]: [caption]". *Do not* place figure captions simply where they are found visually on the page if that breaks the logical flow of the text.
         * Tables: Announce as "Table [number]: [caption]".
 
 3.  **Table Handling (Specific and Detailed):**
