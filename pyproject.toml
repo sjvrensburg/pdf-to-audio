@@ -1,45 +1,57 @@
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
 [project]
 name = "pdf-to-audio"
 version = "0.1.0"
-description = "A tool to convert PDFs to audio files"
+description = "A tool to convert PDFs to TTS-friendly text using Mistral API"
 authors = [
-    {name = "sjvrensburg",email = "stefanj@mandela.ac.za"}
+    {name = "sjvrensburg", email = "stefanj@mandela.ac.za"}
 ]
-license = {text = "GPL3"}
+license = {text = "GPL-3.0-or-later"}
 readme = "README.md"
-requires-python = ">=3.12,<4.0"
+requires-python = ">=3.8"
+keywords = ["pdf", "audio", "tts", "text-to-speech", "mistral", "ai"]
+classifiers = [
+    "Development Status :: 4 - Beta",
+    "Intended Audience :: Developers",
+    "Intended Audience :: Science/Research",
+    "License :: OSI Approved :: GNU General Public License v3 or later (GPLv3+)",
+    "Operating System :: OS Independent",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.8",
+    "Programming Language :: Python :: 3.9",
+    "Programming Language :: Python :: 3.10",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Topic :: Scientific/Engineering",
+    "Topic :: Text Processing",
+    "Topic :: Multimedia :: Sound/Audio :: Speech",
+]
 dependencies = [
-    "requests (>=2.32.4,<3.0.0)",
-    "rich (>=14.0.0,<15.0.0)",
-    "mistune (>=3.1.3,<4.0.0)",
-    "pydub (>=0.25.1,<0.26.0)",
-    "mistralai (>=1.9.1,<2.0.0)",
-    "tenacity (>=9.1.2,<10.0.0)",
-    "tqdm (>=4.67.1,<5.0.0)",
+    "requests>=2.32.4",
+    "mistralai>=1.9.1",
+    "tenacity>=9.1.2",
+    "tqdm>=4.67.1",
 ]
 
-[tool.poetry.group.interactive]
-optional = true
+[project.optional-dependencies]
+dev = [
+    "mypy>=1.4.1",
+    "isort>=5.0.0",
+    "ruff>=0.12.2",
+    "pytest>=7.0.0",
+    "pytest-cov>=4.0.0",
+]
+interactive = [
+    "ipython>=8.0.0",
+]
 
-[tool.poetry.group.interactive.dependencies]
-ipython = "^9.4.0"
+[project.urls]
+Homepage = "https://github.com/sjvrensburg/pdf-to-audio"
+Repository = "https://github.com/sjvrensburg/pdf-to-audio"
+Issues = "https://github.com/sjvrensburg/pdf-to-audio/issues"
 
-[tool.poetry.group.dev]
-optional = true
-
-[tool.poetry.group.dev.dependencies]
-mypy = "^1.4.1"
-isort = "^6.0.1"
-ruff = "^0.12.2"
-pylance = "^0.31.0"
-
-[build-system]
-requires = ["poetry-core>=2.0.0,<3.0.0"]
-build-backend = "poetry.core.masonry.api"
-
-
-[tool.poetry.scripts]
-pdf-to-audio = "pdf_to_audio:main"
-
-
-[tool.poetry.dependencies]
+[project.scripts]
+pdf-to-audio = "pdf_to_audio.cli:main"
