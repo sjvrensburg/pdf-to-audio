@@ -141,6 +141,7 @@ pdf-to-audio --list_audio_formats
 - `--cfg_weight`: CFG weight for TTS (0.0-1.0, default: 0.5)
 - `--audio_format`: Output audio format (wav, mp3, flac, ogg, m4a)
 - `--chunk_strategy`: Text chunking strategy (duration, sentences, smart)
+- `--force_cpu`: Force using CPU for TTS even if GPU is available
 
 #### General Options
 - `--overwrite`: Overwrite output files if they exist
@@ -203,11 +204,21 @@ pdf-to-audio large_document.pdf --output_audio document_audio.mp3 --pages_per_ch
 pdf-to-audio academic_paper.pdf --output_audio academic_audio.flac --audio_format flac --exaggeration 0.3 --cfg_weight 0.6
 ```
 
+### Generate Audio Using CPU (for CUDA Error Workaround)
+
+```bash
+pdf-to-audio input.pdf --output_audio output.mp3 --force_cpu
+```
+
 ## Troubleshooting
 
 ### Common TTS Issues
 
 - **CUDA Out of Memory**: Try using a smaller `--pages_per_chunk` value or process the document in smaller sections
+- **CUDA Errors**: If you encounter CUDA errors like "CUDA-capable device(s) is/are busy or unavailable", use the `--force_cpu` option to force CPU processing:
+  ```bash
+  pdf-to-audio input.pdf --output_audio output.mp3 --force_cpu
+  ```
 - **Voice Cloning Quality**: Ensure your voice sample is clear, has minimal background noise, and is 5-15 seconds long
 - **Slow Audio Generation**: Audio generation is CPU-intensive without CUDA. Consider using a GPU-enabled system
 
@@ -216,6 +227,7 @@ pdf-to-audio academic_paper.pdf --output_audio academic_audio.flac --audio_forma
 - **Check Voice Sample**: Ensure the voice sample is a valid WAV file with appropriate duration
 - **Check Disk Space**: Ensure you have sufficient disk space for temporary files during audio generation
 - **Check CUDA Installation**: If using CUDA, ensure your drivers and CUDA toolkit are properly installed
+- **GPU Issues**: If you're having persistent GPU issues, try the `--force_cpu` option to bypass GPU acceleration
 
 ## Development
 

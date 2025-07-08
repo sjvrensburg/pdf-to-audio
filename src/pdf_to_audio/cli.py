@@ -103,6 +103,11 @@ def create_parser():
         default="smart",
         help="Text chunking strategy for audio generation (default: smart).",
     )
+    audio_group.add_argument(
+        "--force_cpu",
+        action="store_true",
+        help="Force using CPU for TTS even if GPU is available. Use this if you encounter CUDA errors.",
+    )
     
     # General options
     general_group = parser.add_argument_group('General Options')

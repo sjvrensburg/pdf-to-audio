@@ -103,9 +103,14 @@ def generate_audio(text, args):
         
     # Initialize TTS engine
     try:
-        tts_engine = ChatterboxTTSEngine()
+        # Check if force_cpu option is set
+        force_cpu = hasattr(args, 'force_cpu') and args.force_cpu
+        tts_engine = ChatterboxTTSEngine(force_cpu=force_cpu)
+        if tts_engine.device == "cpu" and not force_cpu:
+            print("Note: Using CPU for audio generation. This may be slower than GPU acceleration.")
     except Exception as e:
         logger.error(f"Failed to initialize TTS engine: {e}")
+        print(f"Error initializing TTS engine. Try using --force_cpu option if you're having GPU issues.")
         raise
         
     # Initialize text chunker

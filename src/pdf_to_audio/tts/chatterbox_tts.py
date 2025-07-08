@@ -39,15 +39,16 @@ class ChatterboxTTSEngine:
     for generating audio from text.
     """
 
-    def __init__(self, device: Optional[str] = None):
+    def __init__(self, device: Optional[str] = None, force_cpu: bool = False):
         """
         Initialize the Chatterbox TTS engine.
 
         Args:
             device: The device to use for inference. If None, will automatically
                    select the best available device (CUDA, MPS, or CPU).
+            force_cpu: If True, will force using CPU regardless of GPU availability.
         """
-        self.device = self._get_device(device)
+        self.device = "cpu" if force_cpu else self._get_device(device)
         logger.info(f"Initializing Chatterbox TTS engine on device: {self.device}")
         
         try:
@@ -55,8 +56,20 @@ class ChatterboxTTSEngine:
             self.sample_rate = self.model.sr
             logger.info(f"Chatterbox TTS engine initialized successfully. Sample rate: {self.sample_rate}Hz")
         except Exception as e:
-            logger.error(f"Failed to initialize Chatterbox TTS engine: {e}")
-            raise
+            if self.device != "cpu" and not force_cpu:
+                # If initialization fails with GPU, try falling back to CPU
+                logger.warning(f"Failed to initialize on {self.device}, falling back to CPU: {e}")
+                try:
+                    self.device = "cpu"
+                    self.model = ChatterboxTTS.from_pretrained(device=self.device)
+                    self.sample_rate = self.model.sr
+                    logger.info(f"Chatterbox TTS engine initialized successfully on CPU. Sample rate: {self.sample_rate}Hz")
+                except Exception as cpu_e:
+                    logger.error(f"Failed to initialize Chatterbox TTS engine on CPU: {cpu_e}")
+                    raise
+            else:
+                logger.error(f"Failed to initialize Chatterbox TTS engine: {e}")
+                raise
 
     def _get_device(self, device: Optional[str] = None) -> str:
         """
