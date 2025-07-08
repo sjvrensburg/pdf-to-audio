@@ -1,6 +1,7 @@
 """Core processing functions for PDF to audio conversion."""
 
 import os
+import re
 import time
 import logging
 import tempfile
