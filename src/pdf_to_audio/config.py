@@ -31,7 +31,7 @@ DEFAULT_CONFIG = {
         "math_tts_scale": 0.75,     # Default scaling factor for math TTS settings
         "audio_format": "wav",
         "chunk_strategy": "smart",
-        "voice_path": None,
+        "global_normalization": False,
     },
     
     # General settings
@@ -138,8 +138,8 @@ def merge_with_args(config: Dict[str, Any], args) -> Dict[str, Any]:
         merged_config["tts"]["audio_format"] = args.audio_format
     if hasattr(args, 'chunk_strategy') and args.chunk_strategy is not None:
         merged_config["tts"]["chunk_strategy"] = args.chunk_strategy
-    if hasattr(args, 'voice') and args.voice is not None:
-        merged_config["tts"]["voice_path"] = args.voice
+    if hasattr(args, 'global_normalization'):
+        merged_config["tts"]["global_normalization"] = args.global_normalization
     
     # Update general settings
     if hasattr(args, 'pages_per_chunk') and args.pages_per_chunk is not None:

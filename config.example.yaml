@@ -42,8 +42,8 @@ tts:
   # Text chunking strategy for audio generation (duration, sentences, smart)
   chunk_strategy: "smart"
   
-  # Path to a .wav file for voice cloning
-  # voice_path: "/path/to/voice.wav"
+  # Apply global volume normalization to the entire audio file after concatenation
+  global_normalization: false
 
 # General settings
 general:

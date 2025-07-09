@@ -93,8 +93,7 @@ class ChatterboxTTSEngine:
 
     def generate_audio(
         self, 
-        text: str, 
-        voice_path: Optional[str] = None,
+        text: str,
         settings: Optional[Dict[str, Any]] = None
     ) -> Tuple[torch.Tensor, int]:
         """
@@ -102,7 +101,6 @@ class ChatterboxTTSEngine:
 
         Args:
             text: The text to convert to speech.
-            voice_path: Optional path to a voice sample for voice cloning.
             settings: Optional dictionary of TTS settings to override defaults.
 
         Returns:
@@ -123,7 +121,6 @@ class ChatterboxTTSEngine:
             # Generate audio using Chatterbox TTS
             wav = self.model.generate(
                 text,
-                audio_prompt_path=voice_path,
                 exaggeration=tts_settings.get("exaggeration", 0.5),
                 cfg_weight=tts_settings.get("cfg_weight", 0.5)
             )
