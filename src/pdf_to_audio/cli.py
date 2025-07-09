@@ -92,6 +92,22 @@ def create_parser():
         help="CFG weight for TTS (0.0-1.0, default: 0.5).",
     )
     audio_group.add_argument(
+        "--math_exaggeration",
+        type=float,
+        help="TTS exaggeration level for mathematical content (0.0-1.0). If not provided, defaults to 0.75 * exaggeration.",
+    )
+    audio_group.add_argument(
+        "--math_cfg_weight",
+        type=float,
+        help="CFG weight for TTS for mathematical content (0.0-1.0). If not provided, defaults to 0.75 * cfg_weight.",
+    )
+    audio_group.add_argument(
+        "--math_tts_scale",
+        type=float,
+        default=0.75,
+        help="Scaling factor for math TTS settings relative to plain text settings (default: 0.75).",
+    )
+    audio_group.add_argument(
         "--audio_format",
         choices=["wav", "mp3", "flac", "ogg", "m4a"],
         default="wav",
@@ -111,6 +127,18 @@ def create_parser():
     
     # General options
     general_group = parser.add_argument_group('General Options')
+    general_group.add_argument(
+        "--config_file",
+        help="Path to a YAML configuration file with custom settings.",
+    )
+    general_group.add_argument(
+        "--system_prompt",
+        help="Custom system prompt to override the default one.",
+    )
+    general_group.add_argument(
+        "--temp_dir",
+        help="Directory to use for temporary files. If not provided, system temp directory will be used.",
+    )
     general_group.add_argument(
         "--overwrite",
         action="store_true",

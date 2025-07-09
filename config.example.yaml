@@ -1,0 +1,67 @@
+# Example configuration file for pdf-to-audio
+# This file demonstrates all available configuration options
+
+# Mistral API settings
+mistral:
+  # Model for text processing
+  text_model: "mistral-small-latest"
+  
+  # Model for image processing (if include_images is true)
+  image_model: "pixtral-12b-latest"
+  
+  # Temperature parameter for randomness in responses (0.0-1.0)
+  temperature: 0.2
+  
+  # Custom system prompt (if not provided, the default one will be used)
+  # system_prompt: |
+  #   Your custom system prompt here.
+  #   You can use multiple lines.
+
+# Text-to-Speech settings
+tts:
+  # TTS exaggeration level (0.0-1.0)
+  exaggeration: 0.5
+  
+  # CFG weight for TTS (0.0-1.0)
+  cfg_weight: 0.5
+  
+  # TTS exaggeration level for mathematical content (0.0-1.0)
+  # If not provided, defaults to math_tts_scale * exaggeration
+  # math_exaggeration: 0.375
+  
+  # CFG weight for TTS for mathematical content (0.0-1.0)
+  # If not provided, defaults to math_tts_scale * cfg_weight
+  # math_cfg_weight: 0.375
+  
+  # Scaling factor for math TTS settings relative to plain text settings
+  math_tts_scale: 0.75
+  
+  # Output audio format (wav, mp3, flac, ogg, m4a)
+  audio_format: "wav"
+  
+  # Text chunking strategy for audio generation (duration, sentences, smart)
+  chunk_strategy: "smart"
+  
+  # Path to a .wav file for voice cloning
+  # voice_path: "/path/to/voice.wav"
+
+# General settings
+general:
+  # Directory to use for temporary files
+  # If not provided, system temp directory will be used
+  # temp_dir: "/path/to/temp/dir"
+  
+  # Number of pages to process at a time
+  pages_per_chunk: 1
+  
+  # Include image descriptions in the output
+  include_images: false
+  
+  # Overwrite output files if they exist
+  overwrite: false
+  
+  # Enable verbose output for debugging
+  verbose: false
+  
+  # Force using CPU for TTS even if GPU is available
+  force_cpu: false

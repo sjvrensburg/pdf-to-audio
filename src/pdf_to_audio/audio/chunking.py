@@ -22,6 +22,7 @@ MATH_EXPR_PATTERN = r'\$.*?\$|\\\(.*?\\\)|\\\[.*?\\\]|\\begin\{equation\}.*?\\en
 CITATION_PATTERN = r'\[[\d,\s-]+\]|\([\w\s]+,\s*\d{4}\)'
 FIGURE_REF_PATTERN = r'Figure \d+|Fig\. \d+|Table \d+|Tab\. \d+'
 SECTION_HEADING_PATTERN = r'^#+\s+.*$|^.*\n[=-]+\n'
+MATH_TAG_PATTERN = r'<MATH>.*?</MATH>'
 
 
 class TextChunker:
@@ -306,6 +307,9 @@ class TextChunker:
                 protected_regions[placeholder] = match.group(0)
                 text = text.replace(match.group(0), placeholder, 1)
                 
+        # Protect math tags (added for math-specific TTS settings)
+        replace_with_placeholder(MATH_TAG_PATTERN, "MATHTAG")
+        
         # Protect math expressions
         replace_with_placeholder(MATH_EXPR_PATTERN, "MATH")
         
