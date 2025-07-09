@@ -221,8 +221,7 @@ def generate_audio(text, args):
                         if segment.strip():
                             # Generate audio with regular settings
                             segment_audio, segment_sr = tts_engine.generate_audio(
-                                segment.strip(), 
-                                voice_path=merged_config["tts"]["voice_path"],
+                                segment.strip(),
                                 settings=tts_settings
                             )
                             segment_audios.append(segment_audio)
@@ -234,8 +233,7 @@ def generate_audio(text, args):
                             if math_content:
                                 # Generate audio with math-specific settings
                                 math_audio, math_sr = tts_engine.generate_audio(
-                                    math_content, 
-                                    voice_path=merged_config["tts"]["voice_path"],
+                                    math_content,
                                     settings=math_tts_settings
                                 )
                                 segment_audios.append(math_audio)
@@ -248,15 +246,13 @@ def generate_audio(text, args):
                     else:
                         # Fallback if no segments were processed
                         audio, sample_rate = tts_engine.generate_audio(
-                            chunk.replace("<MATH>", "").replace("</MATH>", ""), 
-                            voice_path=merged_config["tts"]["voice_path"],
+                            chunk.replace("<MATH>", "").replace("</MATH>", ""),
                             settings=tts_settings
                         )
                 else:
                     # No math content, use regular settings
                     audio, sample_rate = tts_engine.generate_audio(
-                        chunk, 
-                        voice_path=merged_config["tts"]["voice_path"],
+                        chunk,
                         settings=tts_settings
                     )
                 
@@ -288,6 +284,27 @@ def generate_audio(text, args):
         temp_concatenated = os.path.join(temp_dir, "concatenated.wav")
         concatenator.concatenate_files(temp_audio_files, temp_concatenated)
         
+        # Apply global volume normalization if enabled
+        if merged_config["tts"].get("global_normalization", False):
+            print("Applying global volume normalization...")
+            # Load the concatenated audio
+            waveform, sample_rate = torchaudio.load(temp_concatenated)
+            # Apply global normalization
+            normalized_waveform = audio_processor.normalize_volume(waveform)
+            # Save the normalized audio
+            torchaudio.save(temp_concatenated, normalized_waveform, sample_rate)
+            
+        # Save the text content alongside the audio
+        if hasattr(args, 'output_audio') and args.output_audio:
+            text_output_path = os.path.splitext(args.output_audio)[0] + ".txt"
+            try:
+                with open(text_output_path, 'w', encoding='utf-8') as f:
+                    f.write(text)
+                print(f"Text content saved to: {text_output_path}")
+            except Exception as e:
+                logger.error(f"Error saving text content: {e}")
+                print(f"Error saving text content: {e}")
+        
         # Convert to desired format if not WAV
         if merged_config["tts"]["audio_format"].lower() != 'wav':
             print(f"Converting to {merged_config['tts']['audio_format']} format...")
@@ -308,6 +325,9 @@ def generate_audio(text, args):
                 # Create a copy in the current directory before the temp dir is deleted
                 output_path = "output.wav"
                 shutil.copy2(temp_concatenated, output_path)
+                # Also save the text content
+                with open("output.txt", 'w', encoding='utf-8') as f:
+                    f.write(text)
         
         print(f"Audio generation complete: {output_path}")
         return output_path

@@ -10,7 +10,7 @@ A powerful command-line tool that converts PDF documents to TTS-friendly text an
 - **Chunked Processing**: Handles large documents efficiently
 - **Customizable Models**: Choose different Mistral models for text and image processing
 - **Audio Generation**: Generate high-quality audio files from PDF content using Chatterbox TTS
-- **Voice Cloning**: Clone voices from audio samples for personalized TTS
+- **Global Volume Normalization**: Optional global volume normalization for consistent audio levels
 - **Audio Post-Processing**: Volume normalization, natural pauses, and noise reduction
 - **Multiple Audio Formats**: Support for WAV, MP3, FLAC, OGG, and M4A formats
 - **Intelligent Text Chunking**: Smart chunking strategies for optimal audio generation
@@ -80,8 +80,8 @@ pdf-to-audio input.pdf output.txt --pages_per_chunk 3
 # Use different models
 pdf-to-audio input.pdf output.txt --text_model mistral-large-latest --image_model pixtral-12b-latest
 
-# Generate audio with voice cloning
-pdf-to-audio input.pdf --output_audio output.mp3 --voice voice_sample.wav
+# Generate audio with global volume normalization
+pdf-to-audio input.pdf --output_audio output.mp3 --global_normalization
 
 # Generate audio with custom TTS settings
 pdf-to-audio input.pdf --output_audio output.mp3 --exaggeration 0.7 --cfg_weight 0.3
@@ -114,20 +114,13 @@ pdf-to-audio input.pdf output.txt --verbose
 pdf-to-audio input.pdf output.txt --output_audio output.mp3 --overwrite
 ```
 
-### Voice Management
+### Text Output
+
+When generating audio, the tool will automatically save the processed text content alongside the audio file with the same base filename but with a `.txt` extension. For example, if you generate `output.mp3`, the tool will also create `output.txt` containing the text that was used to generate the audio.
 
 ```bash
-# Register a voice for future use
-pdf-to-audio --register_voice voice_sample.wav "John Doe"
-
-# List registered voices
-pdf-to-audio --list_voices
-
-# Remove a registered voice
-pdf-to-audio --remove_voice "John Doe"
-
-# Use a registered voice by name
-pdf-to-audio input.pdf --output_audio output.mp3 --voice "John Doe"
+# Generate audio (text file will be created automatically)
+pdf-to-audio input.pdf --output_audio output.mp3
 ```
 
 ### Utility Commands
@@ -190,8 +183,8 @@ tts:
   # Text chunking strategy for audio generation (duration, sentences, smart)
   chunk_strategy: "smart"
   
-  # Path to a .wav file for voice cloning
-  # voice_path: "/path/to/voice.wav"
+  # Apply global volume normalization to the entire audio file after concatenation
+  global_normalization: false
 
 # General settings
 general:
@@ -233,10 +226,7 @@ By default, mathematical content is processed with TTS settings that are 75% of 
 
 #### Audio Generation Options
 - `--output_audio`: Path to the output audio file
-- `--voice`: Path to a .wav file for voice cloning
-- `--list_voices`: List currently registered voices and exit
-- `--register_voice`: Register a voice sample for future use
-- `--remove_voice`: Remove a registered voice by name
+- `--global_normalization`: Apply global volume normalization to the entire audio file
 - `--exaggeration`: TTS exaggeration level (0.0-1.0, default: 0.5)
 - `--cfg_weight`: CFG weight for TTS (0.0-1.0, default: 0.5)
 - `--math_exaggeration`: TTS exaggeration level for mathematical content (0.0-1.0)
@@ -264,25 +254,24 @@ The tool automatically converts mathematical notation to spoken language:
 - `α + β` → "alpha plus beta"
 - `∑_{i=1}^{n} a_i` → "the sum from i equals 1 to n of a sub i"
 
-## Voice Cloning Setup
+## Global Volume Normalization
 
-For best results with voice cloning:
+The tool now supports global volume normalization, which ensures consistent audio levels throughout the entire output file:
 
-1. **Prepare a high-quality voice sample**:
-   - Use a WAV file with clear speech, minimal background noise
-   - Optimal duration: 5-15 seconds
-   - Sample rate: 44.1kHz or 48kHz
-   - Mono audio is preferred
-
-2. **Register the voice**:
+1. **Enable global normalization**:
    ```bash
-   pdf-to-audio --register_voice your_sample.wav "Your Voice Name"
+   pdf-to-audio input.pdf --output_audio output.mp3 --global_normalization
    ```
 
-3. **Use the registered voice**:
-   ```bash
-   pdf-to-audio input.pdf --output_audio output.mp3 --voice "Your Voice Name"
-   ```
+2. **How it works**:
+   - Without global normalization, each chunk of audio is normalized individually
+   - With global normalization, the entire audio file is normalized after all chunks are concatenated
+   - This prevents volume "jumps" between different sections of the audio
+
+3. **When to use it**:
+   - For longer documents with varying content types
+   - When processing documents with mathematical content mixed with regular text
+   - When you notice inconsistent volume levels in the output audio
 
 ## Audio Quality Optimization
 
@@ -298,10 +287,10 @@ For best results with voice cloning:
 pdf-to-audio research_paper.pdf paper_text.txt --output_audio paper_audio.mp3 --include_images --verbose
 ```
 
-### Process a Large Document in Chunks with Voice Cloning
+### Process a Large Document in Chunks with Global Normalization
 
 ```bash
-pdf-to-audio large_document.pdf --output_audio document_audio.mp3 --pages_per_chunk 5 --voice your_voice.wav
+pdf-to-audio large_document.pdf --output_audio document_audio.mp3 --pages_per_chunk 5 --global_normalization
 ```
 
 ### Generate High-Quality Audio for Academic Content
@@ -325,12 +314,12 @@ pdf-to-audio input.pdf --output_audio output.mp3 --force_cpu
   ```bash
   pdf-to-audio input.pdf --output_audio output.mp3 --force_cpu
   ```
-- **Voice Cloning Quality**: Ensure your voice sample is clear, has minimal background noise, and is 5-15 seconds long
+- **Volume Inconsistencies**: If you notice volume jumps between sections, try using the `--global_normalization` option
 - **Slow Audio Generation**: Audio generation is CPU-intensive without CUDA. Consider using a GPU-enabled system
 
 ### Audio Generation Failures
 
-- **Check Voice Sample**: Ensure the voice sample is a valid WAV file with appropriate duration
+- **Check Text Output**: If audio generation fails, check the text output file for any issues with the processed text
 - **Check Disk Space**: Ensure you have sufficient disk space for temporary files during audio generation
 - **Check CUDA Installation**: If using CUDA, ensure your drivers and CUDA toolkit are properly installed
 - **GPU Issues**: If you're having persistent GPU issues, try the `--force_cpu` option to bypass GPU acceleration
