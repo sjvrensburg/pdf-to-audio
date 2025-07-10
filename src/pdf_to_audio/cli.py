@@ -106,52 +106,52 @@ def create_parser():
     refinement_group.add_argument(
         "--enable_refinement",
         action="store_true",
-        help="Enable the multi-pass refinement pipeline (default: True).",
+        help="Explicitly enable the multi-pass refinement pipeline (enabled by default).",
     )
     refinement_group.add_argument(
         "--disable_refinement",
         action="store_true",
-        help="Disable the multi-pass refinement pipeline.",
+        help="Disable the multi-pass refinement pipeline (overrides --enable_refinement).",
     )
     refinement_group.add_argument(
         "--enable_math_refinement",
         action="store_true",
-        help="Enable the mathematical content refinement pass (default: True).",
+        help="Explicitly enable the mathematical content refinement pass (enabled by default).",
     )
     refinement_group.add_argument(
         "--disable_math_refinement",
         action="store_true",
-        help="Disable the mathematical content refinement pass.",
+        help="Disable the mathematical content refinement pass (overrides --enable_math_refinement).",
     )
     refinement_group.add_argument(
         "--enable_structure_citation_optimization",
         action="store_true",
-        help="Enable the structure and citation optimization pass (default: True).",
+        help="Explicitly enable the structure and citation optimization pass (enabled by default).",
     )
     refinement_group.add_argument(
         "--disable_structure_citation_optimization",
         action="store_true",
-        help="Disable the structure and citation optimization pass.",
+        help="Disable the structure and citation optimization pass (overrides --enable_structure_citation_optimization).",
     )
     refinement_group.add_argument(
         "--enable_language_style_refinement",
         action="store_true",
-        help="Enable the language and style refinement pass (default: True).",
+        help="Explicitly enable the language and style refinement pass (enabled by default).",
     )
     refinement_group.add_argument(
         "--disable_language_style_refinement",
         action="store_true",
-        help="Disable the language and style refinement pass.",
+        help="Disable the language and style refinement pass (overrides --enable_language_style_refinement).",
     )
     refinement_group.add_argument(
         "--enable_audio_specific_optimization",
         action="store_true",
-        help="Enable the audio-specific optimization pass (default: True).",
+        help="Explicitly enable the audio-specific optimization pass (enabled by default).",
     )
     refinement_group.add_argument(
         "--disable_audio_specific_optimization",
         action="store_true",
-        help="Disable the audio-specific optimization pass.",
+        help="Disable the audio-specific optimization pass (overrides --enable_audio_specific_optimization).",
     )
     refinement_group.add_argument(
         "--math_refinement_intensity",
@@ -261,6 +261,18 @@ def main():
     """Main entry point for the CLI application."""
     parser = create_parser()
     args = parser.parse_args()
+    
+    # Initialize refinement flags with default values if not explicitly set
+    if not hasattr(args, 'enable_refinement'):
+        args.enable_refinement = True
+    if not hasattr(args, 'enable_math_refinement'):
+        args.enable_math_refinement = True
+    if not hasattr(args, 'enable_structure_citation_optimization'):
+        args.enable_structure_citation_optimization = True
+    if not hasattr(args, 'enable_language_style_refinement'):
+        args.enable_language_style_refinement = True
+    if not hasattr(args, 'enable_audio_specific_optimization'):
+        args.enable_audio_specific_optimization = True
     
     # Process enable/disable flags for refinement
     if hasattr(args, 'disable_refinement') and args.disable_refinement:

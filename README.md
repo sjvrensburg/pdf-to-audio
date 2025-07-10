@@ -225,9 +225,12 @@ The tool includes a powerful multi-pass refinement system that post-processes co
 
 ### Controlling the Refinement Pipeline
 
-You can enable/disable specific refinement passes and control the refinement intensity:
+The multi-pass refinement pipeline is **enabled by default**. You can control the refinement process with various options:
 
 ```bash
+# The refinement pipeline is enabled by default, no need to specify --enable_refinement
+pdf-to-audio input.pdf output.txt
+
 # Disable the entire refinement pipeline
 pdf-to-audio input.pdf output.txt --disable_refinement
 
@@ -245,6 +248,9 @@ pdf-to-audio input.pdf output.txt --audio_specific_intensity 0.6
 
 # Set target audience (academic or general)
 pdf-to-audio input.pdf output.txt --target_audience general
+
+# Combine multiple options
+pdf-to-audio input.pdf output.txt --math_refinement_intensity 0.8 --target_audience general --disable_structure_citation_optimization
 ```
 
 ### Configuration File
@@ -305,16 +311,16 @@ By default, mathematical content is processed with TTS settings that are 75% of 
 - `--force_cpu`: Force using CPU for TTS even if GPU is available
 
 #### Refinement Options
-- `--enable_refinement`: Enable the multi-pass refinement pipeline (default: True)
-- `--disable_refinement`: Disable the multi-pass refinement pipeline
-- `--enable_math_refinement`: Enable the mathematical content refinement pass (default: True)
-- `--disable_math_refinement`: Disable the mathematical content refinement pass
-- `--enable_structure_citation_optimization`: Enable the structure and citation optimization pass (default: True)
-- `--disable_structure_citation_optimization`: Disable the structure and citation optimization pass
-- `--enable_language_style_refinement`: Enable the language and style refinement pass (default: True)
-- `--disable_language_style_refinement`: Disable the language and style refinement pass
-- `--enable_audio_specific_optimization`: Enable the audio-specific optimization pass (default: True)
-- `--disable_audio_specific_optimization`: Disable the audio-specific optimization pass
+- `--enable_refinement`: Explicitly enable the multi-pass refinement pipeline (enabled by default)
+- `--disable_refinement`: Disable the multi-pass refinement pipeline (overrides --enable_refinement)
+- `--enable_math_refinement`: Explicitly enable the mathematical content refinement pass (enabled by default)
+- `--disable_math_refinement`: Disable the mathematical content refinement pass (overrides --enable_math_refinement)
+- `--enable_structure_citation_optimization`: Explicitly enable the structure and citation optimization pass (enabled by default)
+- `--disable_structure_citation_optimization`: Disable the structure and citation optimization pass (overrides --enable_structure_citation_optimization)
+- `--enable_language_style_refinement`: Explicitly enable the language and style refinement pass (enabled by default)
+- `--disable_language_style_refinement`: Disable the language and style refinement pass (overrides --enable_language_style_refinement)
+- `--enable_audio_specific_optimization`: Explicitly enable the audio-specific optimization pass (enabled by default)
+- `--disable_audio_specific_optimization`: Disable the audio-specific optimization pass (overrides --enable_audio_specific_optimization)
 - `--math_refinement_intensity`: Intensity of the mathematical content refinement (0.0-1.0, default: 0.5)
 - `--structure_citation_intensity`: Intensity of the structure and citation optimization (0.0-1.0, default: 0.5)
 - `--language_style_intensity`: Intensity of the language and style refinement (0.0-1.0, default: 0.5)
