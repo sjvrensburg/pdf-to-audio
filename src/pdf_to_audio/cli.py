@@ -100,6 +100,10 @@ def create_parser():
         action="store_true",
         help="Force using CPU for TTS even if GPU is available. Use this if you encounter CUDA errors.",
     )
+    audio_group.add_argument(
+        "--voice_clone",
+        help="Path to a reference audio file for voice cloning. Supported formats: WAV, MP3, FLAC, M4A.",
+    )
     
     # Refinement options
     refinement_group = parser.add_argument_group('Content Refinement Options')
@@ -249,6 +253,20 @@ def validate_arguments(args, parser):
     if args.output_audio and os.path.exists(args.output_audio) and not args.overwrite:
         print(f"Error: {args.output_audio} exists. Use --overwrite to replace it.")
         sys.exit(1)
+    
+    # Validate voice cloning audio file if provided
+    if hasattr(args, 'voice_clone') and args.voice_clone:
+        if not os.path.exists(args.voice_clone):
+            print(f"Error: Voice cloning audio file not found: {args.voice_clone}")
+            sys.exit(1)
+        
+        # Check file extension
+        valid_extensions = ['.wav', '.mp3', '.flac', '.m4a']
+        file_ext = os.path.splitext(args.voice_clone)[1].lower()
+        if file_ext not in valid_extensions:
+            print(f"Error: Unsupported audio format for voice cloning: {file_ext}")
+            print(f"Supported formats: {', '.join(valid_extensions)}")
+            sys.exit(1)
 def list_audio_formats():
     """List supported audio formats."""
     format_handler = AudioFormatHandler()

@@ -32,6 +32,7 @@ DEFAULT_CONFIG = {
         "audio_format": "wav",
         "chunk_strategy": "smart",
         "global_normalization": False,
+        "audio_prompt_path": None,  # Path to reference audio file for voice cloning
     },
     
     # General settings
@@ -156,6 +157,8 @@ def merge_with_args(config: Dict[str, Any], args) -> Dict[str, Any]:
         merged_config["tts"]["chunk_strategy"] = args.chunk_strategy
     if hasattr(args, 'global_normalization'):
         merged_config["tts"]["global_normalization"] = args.global_normalization
+    if hasattr(args, 'voice_clone') and args.voice_clone is not None:
+        merged_config["tts"]["audio_prompt_path"] = args.voice_clone
     
     # Update general settings
     if hasattr(args, 'pages_per_chunk') and args.pages_per_chunk is not None:

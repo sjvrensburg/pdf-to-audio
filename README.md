@@ -11,6 +11,7 @@ A powerful command-line tool that converts PDF documents to TTS-friendly text an
 - **Customizable Models**: Choose different Mistral models for text and image processing
 - **Multi-Pass Refinement Pipeline**: Specialized passes for optimizing content for audio consumption
 - **Audio Generation**: Generate high-quality audio files from PDF content using Chatterbox TTS
+- **Voice Cloning**: Clone voices from reference audio files using Chatterbox TTS's voice cloning capabilities
 - **Global Volume Normalization**: Optional global volume normalization for consistent audio levels
 - **Audio Post-Processing**: Volume normalization, natural pauses, and noise reduction
 - **Multiple Audio Formats**: Support for WAV, MP3, FLAC, OGG, and M4A formats
@@ -99,6 +100,12 @@ pdf-to-audio input.pdf --output_audio output.flac --audio_format flac
 # Use a specific chunking strategy for audio
 pdf-to-audio input.pdf --output_audio output.mp3 --chunk_strategy sentences
 
+# Use voice cloning with a reference audio file
+pdf-to-audio input.pdf --output_audio output.mp3 --voice_clone reference_voice.wav
+
+# Combine voice cloning with other TTS settings
+pdf-to-audio input.pdf --output_audio output.mp3 --voice_clone my_voice.wav --exaggeration 0.7 --global_normalization
+
 # Use a custom system prompt
 pdf-to-audio input.pdf output.txt --system_prompt "Your custom system prompt here"
 
@@ -186,6 +193,9 @@ tts:
   
   # Apply global volume normalization to the entire audio file after concatenation
   global_normalization: false
+  
+  # Path to a reference audio file for voice cloning (WAV, MP3, FLAC, M4A)
+  # audio_prompt_path: "/path/to/reference_voice.wav"
 
 # General settings
 general:
@@ -309,6 +319,7 @@ By default, mathematical content is processed with TTS settings that are 75% of 
 - `--audio_format`: Output audio format (wav, mp3, flac, ogg, m4a)
 - `--chunk_strategy`: Text chunking strategy (duration, sentences, smart)
 - `--force_cpu`: Force using CPU for TTS even if GPU is available
+- `--voice_clone`: Path to a reference audio file for voice cloning (WAV, MP3, FLAC, M4A)
 
 #### Refinement Options
 - `--enable_refinement`: Explicitly enable the multi-pass refinement pipeline (enabled by default)
@@ -364,6 +375,52 @@ The tool now supports global volume normalization, which ensures consistent audi
    - When processing documents with mathematical content mixed with regular text
    - When you notice inconsistent volume levels in the output audio
 
+## Voice Cloning
+
+The tool supports voice cloning using Chatterbox TTS's voice cloning capabilities. This allows you to generate audio that mimics the voice characteristics of a reference audio file.
+
+### Using Voice Cloning
+
+1. **Command-line usage**:
+   ```bash
+   pdf-to-audio input.pdf --output_audio output.mp3 --voice_clone reference_voice.wav
+   ```
+
+2. **Configuration file**:
+   ```yaml
+   tts:
+     audio_prompt_path: "/path/to/reference_voice.wav"
+     exaggeration: 0.5
+     cfg_weight: 0.5
+   ```
+
+3. **Supported audio formats**:
+   - WAV (`.wav`)
+   - MP3 (`.mp3`)
+   - FLAC (`.flac`)
+   - M4A (`.m4a`)
+
+### Tips for Optimal Voice Cloning
+
+- **Audio quality**: Use a high-quality reference audio file with minimal background noise
+- **Audio length**: Reference audio should be 3-10 seconds long for best results
+- **Clear speech**: Choose reference audio with clear, well-articulated speech
+- **Consistent tone**: For best results, the reference audio should have a consistent tone and pace
+- **Combine with other settings**: You can combine voice cloning with other TTS settings like exaggeration and CFG weight
+
+### Example Usage
+
+```bash
+# Basic voice cloning
+pdf-to-audio input.pdf --output_audio output.mp3 --voice_clone my_voice.wav
+
+# Voice cloning with custom TTS settings
+pdf-to-audio input.pdf --output_audio output.mp3 --voice_clone my_voice.wav --exaggeration 0.6 --cfg_weight 0.4
+
+# Voice cloning with global normalization
+pdf-to-audio input.pdf --output_audio output.mp3 --voice_clone my_voice.wav --global_normalization
+```
+
 ## Audio Quality Optimization
 
 - **For academic content**: Use `--exaggeration 0.3 --cfg_weight 0.6` for a more controlled, deliberate tone
@@ -388,6 +445,12 @@ pdf-to-audio large_document.pdf --output_audio document_audio.mp3 --pages_per_ch
 
 ```bash
 pdf-to-audio academic_paper.pdf --output_audio academic_audio.flac --audio_format flac --exaggeration 0.3 --cfg_weight 0.6
+```
+
+### Generate Audio with Voice Cloning
+
+```bash
+pdf-to-audio document.pdf --output_audio cloned_voice_audio.mp3 --voice_clone my_reference_voice.wav --exaggeration 0.5 --global_normalization
 ```
 
 ### Generate Audio Using CPU (for CUDA Error Workaround)

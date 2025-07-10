@@ -44,6 +44,9 @@ tts:
   
   # Apply global volume normalization to the entire audio file after concatenation
   global_normalization: false
+  
+  # Path to a reference audio file for voice cloning (WAV, MP3, FLAC, M4A)
+  # audio_prompt_path: "/path/to/reference_voice.wav"
 
 # General settings
 general:
