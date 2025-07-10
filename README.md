@@ -27,13 +27,7 @@ A powerful command-line tool that converts PDF documents to TTS-friendly text an
 ### Using pipx (Recommended)
 
 ```bash
-pipx install pdf-to-audio
-```
-
-### Using pip
-
-```bash
-pip install pdf-to-audio
+pipx install git+https://github.com/sjvrensburg/pdf-to-audio
 ```
 
 ### From Source
