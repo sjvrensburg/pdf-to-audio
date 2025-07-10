@@ -221,8 +221,17 @@ def generate_audio(text, args):
         if merged_config["tts"]["cfg_weight"] is not None:
             tts_settings["cfg_weight"] = merged_config["tts"]["cfg_weight"]
         
+        # Add voice cloning audio prompt path if provided
+        if merged_config["tts"]["audio_prompt_path"] is not None:
+            tts_settings["audio_prompt_path"] = merged_config["tts"]["audio_prompt_path"]
+            print(f"Voice cloning enabled with reference audio: {merged_config['tts']['audio_prompt_path']}")
+        
         # Get math-specific TTS settings
         math_tts_settings = get_math_tts_settings(merged_config)
+        
+        # Add voice cloning to math settings as well
+        if merged_config["tts"]["audio_prompt_path"] is not None:
+            math_tts_settings["audio_prompt_path"] = merged_config["tts"]["audio_prompt_path"]
         
         # Chunk the text
         print("Chunking text for audio generation...")

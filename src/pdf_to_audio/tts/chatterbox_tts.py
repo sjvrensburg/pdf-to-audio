@@ -102,6 +102,7 @@ class ChatterboxTTSEngine:
         Args:
             text: The text to convert to speech.
             settings: Optional dictionary of TTS settings to override defaults.
+                      Can include 'audio_prompt_path' for voice cloning.
 
         Returns:
             A tuple containing the audio waveform tensor and sample rate.
@@ -116,14 +117,28 @@ class ChatterboxTTSEngine:
             tts_settings.update(settings)
             
         try:
+            # Check if voice cloning is requested
+            audio_prompt_path = tts_settings.get("audio_prompt_path")
+            if audio_prompt_path:
+                logger.info(f"Using voice cloning with audio prompt: {audio_prompt_path}")
+                if not os.path.exists(audio_prompt_path):
+                    logger.error(f"Audio prompt file not found: {audio_prompt_path}")
+                    raise FileNotFoundError(f"Audio prompt file not found: {audio_prompt_path}")
+            
             logger.info(f"Generating audio for text of length {len(text)} with settings: {tts_settings}")
             
             # Generate audio using Chatterbox TTS
-            wav = self.model.generate(
-                text,
-                exaggeration=tts_settings.get("exaggeration", 0.5),
-                cfg_weight=tts_settings.get("cfg_weight", 0.5)
-            )
+            # Include audio_prompt_path if provided
+            generate_kwargs = {
+                "exaggeration": tts_settings.get("exaggeration", 0.5),
+                "cfg_weight": tts_settings.get("cfg_weight", 0.5)
+            }
+            
+            # Add audio_prompt_path if it exists
+            if audio_prompt_path:
+                generate_kwargs["audio_prompt_path"] = audio_prompt_path
+            
+            wav = self.model.generate(text, **generate_kwargs)
             
             logger.info(f"Audio generated successfully. Shape: {wav.shape}")
             return wav, self.sample_rate
