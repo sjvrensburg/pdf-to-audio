@@ -100,6 +100,89 @@ def create_parser():
         action="store_true",
         help="Force using CPU for TTS even if GPU is available. Use this if you encounter CUDA errors.",
     )
+    
+    # Refinement options
+    refinement_group = parser.add_argument_group('Content Refinement Options')
+    refinement_group.add_argument(
+        "--enable_refinement",
+        action="store_true",
+        help="Explicitly enable the multi-pass refinement pipeline (enabled by default).",
+    )
+    refinement_group.add_argument(
+        "--disable_refinement",
+        action="store_true",
+        help="Disable the multi-pass refinement pipeline (overrides --enable_refinement).",
+    )
+    refinement_group.add_argument(
+        "--enable_math_refinement",
+        action="store_true",
+        help="Explicitly enable the mathematical content refinement pass (enabled by default).",
+    )
+    refinement_group.add_argument(
+        "--disable_math_refinement",
+        action="store_true",
+        help="Disable the mathematical content refinement pass (overrides --enable_math_refinement).",
+    )
+    refinement_group.add_argument(
+        "--enable_structure_citation_optimization",
+        action="store_true",
+        help="Explicitly enable the structure and citation optimization pass (enabled by default).",
+    )
+    refinement_group.add_argument(
+        "--disable_structure_citation_optimization",
+        action="store_true",
+        help="Disable the structure and citation optimization pass (overrides --enable_structure_citation_optimization).",
+    )
+    refinement_group.add_argument(
+        "--enable_language_style_refinement",
+        action="store_true",
+        help="Explicitly enable the language and style refinement pass (enabled by default).",
+    )
+    refinement_group.add_argument(
+        "--disable_language_style_refinement",
+        action="store_true",
+        help="Disable the language and style refinement pass (overrides --enable_language_style_refinement).",
+    )
+    refinement_group.add_argument(
+        "--enable_audio_specific_optimization",
+        action="store_true",
+        help="Explicitly enable the audio-specific optimization pass (enabled by default).",
+    )
+    refinement_group.add_argument(
+        "--disable_audio_specific_optimization",
+        action="store_true",
+        help="Disable the audio-specific optimization pass (overrides --enable_audio_specific_optimization).",
+    )
+    refinement_group.add_argument(
+        "--math_refinement_intensity",
+        type=float,
+        default=0.5,
+        help="Intensity of the mathematical content refinement (0.0-1.0, default: 0.5).",
+    )
+    refinement_group.add_argument(
+        "--structure_citation_intensity",
+        type=float,
+        default=0.5,
+        help="Intensity of the structure and citation optimization (0.0-1.0, default: 0.5).",
+    )
+    refinement_group.add_argument(
+        "--language_style_intensity",
+        type=float,
+        default=0.5,
+        help="Intensity of the language and style refinement (0.0-1.0, default: 0.5).",
+    )
+    refinement_group.add_argument(
+        "--audio_specific_intensity",
+        type=float,
+        default=0.5,
+        help="Intensity of the audio-specific optimization (0.0-1.0, default: 0.5).",
+    )
+    refinement_group.add_argument(
+        "--target_audience",
+        choices=["academic", "general"],
+        default="academic",
+        help="Target audience for the refinement (default: academic).",
+    )
     # General options
     general_group = parser.add_argument_group('General Options')
     general_group.add_argument(
@@ -178,13 +261,40 @@ def main():
     """Main entry point for the CLI application."""
     parser = create_parser()
     args = parser.parse_args()
+    
+    # Initialize refinement flags with default values if not explicitly set
+    if not hasattr(args, 'enable_refinement'):
+        args.enable_refinement = True
+    if not hasattr(args, 'enable_math_refinement'):
+        args.enable_math_refinement = True
+    if not hasattr(args, 'enable_structure_citation_optimization'):
+        args.enable_structure_citation_optimization = True
+    if not hasattr(args, 'enable_language_style_refinement'):
+        args.enable_language_style_refinement = True
+    if not hasattr(args, 'enable_audio_specific_optimization'):
+        args.enable_audio_specific_optimization = True
+    
+    # Process enable/disable flags for refinement
+    if hasattr(args, 'disable_refinement') and args.disable_refinement:
+        args.enable_refinement = False
+    if hasattr(args, 'disable_math_refinement') and args.disable_math_refinement:
+        args.enable_math_refinement = False
+    if hasattr(args, 'disable_structure_citation_optimization') and args.disable_structure_citation_optimization:
+        args.enable_structure_citation_optimization = False
+    if hasattr(args, 'disable_language_style_refinement') and args.disable_language_style_refinement:
+        args.enable_language_style_refinement = False
+    if hasattr(args, 'disable_audio_specific_optimization') and args.disable_audio_specific_optimization:
+        args.enable_audio_specific_optimization = False
+    
     # List audio formats
     if args.list_audio_formats:
         list_audio_formats()
         sys.exit(0)
+    
     # Initialize Mistral client with API key
     api_key = validate_api_key()
     client = Mistral(api_key=api_key)
+    
     # Test API key validity and optionally list models
     try:
         if args.list_models:
@@ -195,23 +305,29 @@ def main():
     except Exception as e:
         print(f"Invalid API key or connection error: {e}")
         sys.exit(1)
+    
     # Validate arguments
     validate_arguments(args, parser)
+    
     if args.verbose:
         print(f"Using text model: {args.text_model}")
         if args.include_images:
             print(f"Using image model: {args.image_model}")
+    
     # Convert PDF to JSON
     print("Processing PDF with OCR...")
     doc = process_pdf_to_json(client, args.input_pdf)
+    
     # Process the document
     final_transformed_text = process_document(client, doc, args)
+    
     # Write the transformed text to the output file if requested
     if args.output_file:
         with open(args.output_file, 'w', encoding='utf-8') as f:
             f.write(final_transformed_text)
         print(f"Transformation complete. TTS-friendly document saved to '{args.output_file}'.")
         print(f"Output file size: {len(final_transformed_text)} characters")
+    
     # Generate audio if requested
     if args.output_audio:
         try:

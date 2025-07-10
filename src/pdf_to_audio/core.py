@@ -23,6 +23,8 @@ from .audio.formats import AudioFormatHandler
 from .tts.chatterbox_tts import ChatterboxTTSEngine, DEFAULT_TTS_SETTINGS, ACADEMIC_TTS_SETTINGS, MATH_HEAVY_SETTINGS
 from .tts.audio_processing import AudioProcessor
 from .config import load_config, merge_with_args, get_math_tts_settings
+from .refinement.pipeline import RefinementPipeline
+from .refinement.base import RefinementConfig
 
 logger = logging.getLogger(__name__)
 
@@ -119,6 +121,35 @@ def process_document(client, doc, args):
     
     # Post-process the output
     final_transformed_text = post_process_output(final_transformed_text)
+    
+    # Apply multi-pass refinement if enabled
+    if merged_config["refinement"]["enable_refinement"]:
+        print("Applying multi-pass refinement...")
+        
+        # Create refinement config from merged config
+        refinement_config = RefinementConfig(
+            enable_math_refinement=merged_config["refinement"]["enable_math_refinement"],
+            enable_structure_citation_optimization=merged_config["refinement"]["enable_structure_citation_optimization"],
+            enable_language_style_refinement=merged_config["refinement"]["enable_language_style_refinement"],
+            enable_audio_specific_optimization=merged_config["refinement"]["enable_audio_specific_optimization"],
+            math_refinement_intensity=merged_config["refinement"]["math_refinement_intensity"],
+            structure_citation_intensity=merged_config["refinement"]["structure_citation_intensity"],
+            language_style_intensity=merged_config["refinement"]["language_style_intensity"],
+            audio_specific_intensity=merged_config["refinement"]["audio_specific_intensity"],
+            target_audience=merged_config["refinement"]["target_audience"],
+            fallback_on_error=merged_config["refinement"]["fallback_on_error"]
+        )
+        
+        # Initialize and run the refinement pipeline
+        pipeline = RefinementPipeline(config=refinement_config)
+        refined_text = pipeline.refine(final_transformed_text, client, merged_config)
+        
+        # Post-process the refined output again to ensure consistency
+        final_transformed_text = post_process_output(refined_text)
+        
+        print("Multi-pass refinement complete")
+    else:
+        print("Multi-pass refinement is disabled, skipping")
     
     return final_transformed_text
 

@@ -9,6 +9,7 @@ A powerful command-line tool that converts PDF documents to TTS-friendly text an
 - **Image Descriptions**: Optional processing of figures, charts, and diagrams
 - **Chunked Processing**: Handles large documents efficiently
 - **Customizable Models**: Choose different Mistral models for text and image processing
+- **Multi-Pass Refinement Pipeline**: Specialized passes for optimizing content for audio consumption
 - **Audio Generation**: Generate high-quality audio files from PDF content using Chatterbox TTS
 - **Global Volume Normalization**: Optional global volume normalization for consistent audio levels
 - **Audio Post-Processing**: Volume normalization, natural pauses, and noise reduction
@@ -208,9 +209,82 @@ general:
   force_cpu: false
 ```
 
+## Multi-Pass Refinement Pipeline
+
+The tool includes a powerful multi-pass refinement system that post-processes content to optimize it for audio consumption. This pipeline is specifically designed to address challenges with mathematical content, technical abbreviations, citation clusters, complex tables, and dense academic writing style.
+
+### Refinement Passes
+
+1. **Mathematical Content Refinement**: Converts mathematical notation to speech-friendly descriptions while preserving `<MATH></MATH>` tags.
+
+2. **Structure and Citation Optimization**: Transforms citation clusters (e.g., `[1,2,3,4]`) into natural language references and converts complex tables into concise narrative descriptions.
+
+3. **Language and Style Refinement**: Expands technical abbreviations (full form on first use), simplifies complex academic sentences while retaining meaning, and adds conversational elements for improved audio flow.
+
+4. **Audio-Specific Optimization**: Ensures compatibility with Chatterbox TTS, adds optional section markers/navigation aids, and performs final cleanup for audio-friendly formatting.
+
+### Controlling the Refinement Pipeline
+
+The multi-pass refinement pipeline is **enabled by default**. You can control the refinement process with various options:
+
+```bash
+# The refinement pipeline is enabled by default, no need to specify --enable_refinement
+pdf-to-audio input.pdf output.txt
+
+# Disable the entire refinement pipeline
+pdf-to-audio input.pdf output.txt --disable_refinement
+
+# Disable specific refinement passes
+pdf-to-audio input.pdf output.txt --disable_math_refinement
+pdf-to-audio input.pdf output.txt --disable_structure_citation_optimization
+pdf-to-audio input.pdf output.txt --disable_language_style_refinement
+pdf-to-audio input.pdf output.txt --disable_audio_specific_optimization
+
+# Adjust refinement intensity (0.0-1.0, default: 0.5)
+pdf-to-audio input.pdf output.txt --math_refinement_intensity 0.7
+pdf-to-audio input.pdf output.txt --structure_citation_intensity 0.3
+pdf-to-audio input.pdf output.txt --language_style_intensity 0.8
+pdf-to-audio input.pdf output.txt --audio_specific_intensity 0.6
+
+# Set target audience (academic or general)
+pdf-to-audio input.pdf output.txt --target_audience general
+
+# Combine multiple options
+pdf-to-audio input.pdf output.txt --math_refinement_intensity 0.8 --target_audience general --disable_structure_citation_optimization
+```
+
+### Configuration File
+
+You can also configure the refinement pipeline in your YAML configuration file:
+
+```yaml
+# Refinement settings
+refinement:
+  # Master switch for the refinement pipeline
+  enable_refinement: true
+  
+  # Enable/disable specific refinement passes
+  enable_math_refinement: true
+  enable_structure_citation_optimization: true
+  enable_language_style_refinement: true
+  enable_audio_specific_optimization: true
+  
+  # Intensity of each refinement pass (0.0-1.0)
+  math_refinement_intensity: 0.5
+  structure_citation_intensity: 0.5
+  language_style_intensity: 0.5
+  audio_specific_intensity: 0.5
+  
+  # Target audience for the refinement ("academic" or "general")
+  target_audience: "academic"
+  
+  # Whether to fall back to the original content if refinement fails
+  fallback_on_error: true
+```
+
 ## Mathematical Content Processing
 
-The tool now automatically identifies mathematical content in the text and applies specialized TTS settings to it. This is done by instructing the Mistral AI model to tag mathematical content with `<MATH>` and `</MATH>` markers.
+The tool automatically identifies mathematical content in the text and applies specialized TTS settings to it. This is done by instructing the Mistral AI model to tag mathematical content with `<MATH>` and `</MATH>` markers.
 
 By default, mathematical content is processed with TTS settings that are 75% of the values used for regular text. This can be adjusted using the `--math_tts_scale` option, or by setting specific values with `--math_exaggeration` and `--math_cfg_weight`.
 
@@ -235,6 +309,23 @@ By default, mathematical content is processed with TTS settings that are 75% of 
 - `--audio_format`: Output audio format (wav, mp3, flac, ogg, m4a)
 - `--chunk_strategy`: Text chunking strategy (duration, sentences, smart)
 - `--force_cpu`: Force using CPU for TTS even if GPU is available
+
+#### Refinement Options
+- `--enable_refinement`: Explicitly enable the multi-pass refinement pipeline (enabled by default)
+- `--disable_refinement`: Disable the multi-pass refinement pipeline (overrides --enable_refinement)
+- `--enable_math_refinement`: Explicitly enable the mathematical content refinement pass (enabled by default)
+- `--disable_math_refinement`: Disable the mathematical content refinement pass (overrides --enable_math_refinement)
+- `--enable_structure_citation_optimization`: Explicitly enable the structure and citation optimization pass (enabled by default)
+- `--disable_structure_citation_optimization`: Disable the structure and citation optimization pass (overrides --enable_structure_citation_optimization)
+- `--enable_language_style_refinement`: Explicitly enable the language and style refinement pass (enabled by default)
+- `--disable_language_style_refinement`: Disable the language and style refinement pass (overrides --enable_language_style_refinement)
+- `--enable_audio_specific_optimization`: Explicitly enable the audio-specific optimization pass (enabled by default)
+- `--disable_audio_specific_optimization`: Disable the audio-specific optimization pass (overrides --enable_audio_specific_optimization)
+- `--math_refinement_intensity`: Intensity of the mathematical content refinement (0.0-1.0, default: 0.5)
+- `--structure_citation_intensity`: Intensity of the structure and citation optimization (0.0-1.0, default: 0.5)
+- `--language_style_intensity`: Intensity of the language and style refinement (0.0-1.0, default: 0.5)
+- `--audio_specific_intensity`: Intensity of the audio-specific optimization (0.0-1.0, default: 0.5)
+- `--target_audience`: Target audience for the refinement (academic or general, default: academic)
 
 #### General Options
 - `--config_file`: Path to a YAML configuration file with custom settings
@@ -303,6 +394,16 @@ pdf-to-audio academic_paper.pdf --output_audio academic_audio.flac --audio_forma
 
 ```bash
 pdf-to-audio input.pdf --output_audio output.mp3 --force_cpu
+```
+
+### Process a Document with Custom Refinement Settings
+
+```bash
+pdf-to-audio technical_paper.pdf --output_audio paper_audio.mp3 \
+  --math_refinement_intensity 0.8 \
+  --structure_citation_intensity 0.6 \
+  --language_style_intensity 0.4 \
+  --target_audience general
 ```
 
 ## Troubleshooting
