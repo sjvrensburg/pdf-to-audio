@@ -42,6 +42,21 @@ DEFAULT_CONFIG = {
         "overwrite": False,
         "verbose": False,
         "force_cpu": False,
+    },
+    
+    # Refinement settings
+    "refinement": {
+        "enable_refinement": True,  # Master switch for the refinement pipeline
+        "enable_math_refinement": True,
+        "enable_structure_citation_optimization": True,
+        "enable_language_style_refinement": True,
+        "enable_audio_specific_optimization": True,
+        "math_refinement_intensity": 0.5,
+        "structure_citation_intensity": 0.5,
+        "language_style_intensity": 0.5,
+        "audio_specific_intensity": 0.5,
+        "target_audience": "academic",  # "academic" or "general"
+        "fallback_on_error": True,
     }
 }
 
@@ -112,7 +127,8 @@ def merge_with_args(config: Dict[str, Any], args) -> Dict[str, Any]:
     merged_config = {
         "mistral": config["mistral"].copy(),
         "tts": config["tts"].copy(),
-        "general": config["general"].copy()
+        "general": config["general"].copy(),
+        "refinement": config["refinement"].copy() if "refinement" in config else DEFAULT_CONFIG["refinement"].copy()
     }
     
     # Update Mistral settings
@@ -154,6 +170,30 @@ def merge_with_args(config: Dict[str, Any], args) -> Dict[str, Any]:
         merged_config["general"]["force_cpu"] = args.force_cpu
     if hasattr(args, 'temp_dir') and args.temp_dir is not None:
         merged_config["general"]["temp_dir"] = args.temp_dir
+    
+    # Update refinement settings
+    if hasattr(args, 'enable_refinement'):
+        merged_config["refinement"]["enable_refinement"] = args.enable_refinement
+    if hasattr(args, 'enable_math_refinement'):
+        merged_config["refinement"]["enable_math_refinement"] = args.enable_math_refinement
+    if hasattr(args, 'enable_structure_citation_optimization'):
+        merged_config["refinement"]["enable_structure_citation_optimization"] = args.enable_structure_citation_optimization
+    if hasattr(args, 'enable_language_style_refinement'):
+        merged_config["refinement"]["enable_language_style_refinement"] = args.enable_language_style_refinement
+    if hasattr(args, 'enable_audio_specific_optimization'):
+        merged_config["refinement"]["enable_audio_specific_optimization"] = args.enable_audio_specific_optimization
+    if hasattr(args, 'math_refinement_intensity') and args.math_refinement_intensity is not None:
+        merged_config["refinement"]["math_refinement_intensity"] = args.math_refinement_intensity
+    if hasattr(args, 'structure_citation_intensity') and args.structure_citation_intensity is not None:
+        merged_config["refinement"]["structure_citation_intensity"] = args.structure_citation_intensity
+    if hasattr(args, 'language_style_intensity') and args.language_style_intensity is not None:
+        merged_config["refinement"]["language_style_intensity"] = args.language_style_intensity
+    if hasattr(args, 'audio_specific_intensity') and args.audio_specific_intensity is not None:
+        merged_config["refinement"]["audio_specific_intensity"] = args.audio_specific_intensity
+    if hasattr(args, 'target_audience') and args.target_audience is not None:
+        merged_config["refinement"]["target_audience"] = args.target_audience
+    if hasattr(args, 'fallback_on_error'):
+        merged_config["refinement"]["fallback_on_error"] = args.fallback_on_error
     
     return merged_config
 
