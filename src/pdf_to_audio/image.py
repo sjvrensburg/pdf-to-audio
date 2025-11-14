@@ -1,36 +1,50 @@
 """Image processing functions for PDF to audio conversion."""
 
-from .api import make_api_call
+import os
+from mistralai import Mistral
 from .utils import clean_base64_image
 
 
-def process_image(client, base64_image, model):
-    """Describe an image using Mistral's vision capabilities."""
+def process_image(api_key: str, base64_image: str, model: str) -> str:
+    """
+    Describe an image using Mistral's vision capabilities.
+
+    Args:
+        api_key: Mistral API key
+        base64_image: Base64-encoded image data
+        model: Vision model to use (e.g., 'pixtral-12b-latest')
+
+    Returns:
+        Image description for TTS
+    """
     # Clean the base64 string to avoid double prefixes
     clean_base64 = clean_base64_image(base64_image)
-    
+
     # Validate that we have actual base64 content
     if not clean_base64:
         return "Image could not be processed - no valid base64 data"
-    
+
+    # Initialize Mistral client for image processing
+    client = Mistral(api_key=api_key)
+
     messages = [
         {
             "role": "user",
             "content": [
                 {
-                    "type": "text", 
+                    "type": "text",
                     "text": "Describe this mathematical diagram or figure in detail for text-to-speech conversion. Focus on what the image shows, any mathematical content, axes, curves, labels, or data presented. Be specific about mathematical elements like equations, graphs, charts, or diagrams. Keep the description clear and suitable for audio conversion."
                 },
                 {
-                    "type": "image_url", 
+                    "type": "image_url",
                     "image_url": f"data:image/jpeg;base64,{clean_base64}"
                 }
             ]
         }
     ]
-    
+
     try:
-        response = make_api_call(client, model, messages)
+        response = client.chat.complete(model=model, messages=messages)
         return response.choices[0].message.content
     except Exception as e:
         print(f"Error processing image: {e}")
@@ -73,19 +87,29 @@ def replace_image_references(markdown, image_descriptions):
     return markdown
 
 
-def process_page(page, client, image_model):
-    """Replace image references in markdown with their descriptions."""
+def process_page(page, api_key: str, image_model: str) -> str:
+    """
+    Replace image references in markdown with their descriptions.
+
+    Args:
+        page: Page dictionary with 'markdown' and 'images'
+        api_key: Mistral API key for image processing
+        image_model: Vision model to use
+
+    Returns:
+        Markdown with image descriptions
+    """
     markdown = page['markdown']
     if 'images' not in page or not page['images']:
         return markdown
-    
+
     # Process all images and create descriptions
     image_descriptions = {}
-    
+
     for image in page['images']:
         image_id = image['id']
         try:
-            description = process_image(client, image['image_base64'], image_model)
+            description = process_image(api_key, image['image_base64'], image_model)
             image_descriptions[image_id] = description
         except Exception as e:
             print(f"Error processing image {image_id}: {e}")

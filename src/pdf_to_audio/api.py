@@ -1,56 +1,91 @@
-"""API interaction functions for Mistral services."""
+"""API interaction functions for LLM services using any-llm."""
 
 import json
 import sys
 from pathlib import Path
+from typing import List, Dict
 
 import requests
-from mistralai import Mistral
 from tenacity import retry, stop_after_attempt, wait_exponential, retry_if_exception_type
 
 from .constants import MAX_RETRIES, RETRY_WAIT_MIN, RETRY_WAIT_MAX, TEMPERATURE
+from .llm_provider import LLMProvider, AnyLLMProvider, create_llm_provider
 
 
 @retry(
-    stop=stop_after_attempt(MAX_RETRIES), 
+    stop=stop_after_attempt(MAX_RETRIES),
     wait=wait_exponential(multiplier=1, min=RETRY_WAIT_MIN, max=RETRY_WAIT_MAX),
     retry=retry_if_exception_type((requests.exceptions.Timeout, requests.exceptions.ConnectionError))
 )
-def make_api_call(client, model, messages):
-    """Make an API call with retry logic for transient errors."""
+def make_api_call(
+    provider: LLMProvider,
+    messages: List[Dict[str, str]],
+    temperature: float = TEMPERATURE
+) -> str:
+    """
+    Make an API call to an LLM provider with retry logic for transient errors.
+
+    Args:
+        provider: LLMProvider instance to use for the call
+        messages: List of message dicts with 'role' and 'content'
+        temperature: Temperature setting for the response
+
+    Returns:
+        The assistant's response text
+
+    Raises:
+        Various exceptions for API errors
+    """
     try:
-        return client.chat.complete(model=model, messages=messages, temperature=TEMPERATURE)
+        return provider.chat_complete(messages=messages, temperature=temperature)
     except requests.exceptions.Timeout:
         print("API call timed out. Retrying...")
         raise
     except requests.exceptions.HTTPError as e:
         if e.response.status_code == 429:
-            print(f"Rate limit exceeded for model {model}. This might be a capacity issue.")
+            print(f"Rate limit exceeded. This might be a capacity issue.")
             print("Consider trying a different model or waiting before retrying.")
         else:
             print(f"HTTP error {e.response.status_code}: {e.response.text}")
         raise
     except Exception as e:
-        # Handle SDKError and other exceptions
+        # Handle various LLM exceptions
         if "429" in str(e) or "capacity exceeded" in str(e).lower():
-            print(f"Capacity exceeded for model {model}.")
+            print(f"Capacity exceeded.")
             print("This is likely due to high demand. Try:")
-            print("1. Using a different model (e.g., pixtral-12b-latest)")
+            print("1. Using a different model")
             print("2. Waiting a few minutes and trying again")
-            print("3. Upgrading your Mistral service tier")
+            print("3. Checking your API account/quota")
             raise
-        elif "HTTPValidationError" in str(e):
-            print(f"Validation error with model {model}: {e}")
+        elif "validation" in str(e).lower() or "invalid" in str(e).lower():
+            print(f"Validation error: {e}")
             raise
         print(f"API error: {e}")
         raise
 
 
-def process_pdf_to_json(client, pdf_path):
-    """Convert a PDF file to JSON using Mistral's OCR API with error handling."""
+def process_pdf_to_json(api_key: str, pdf_path: str, model: str = "mistral-ocr-latest"):
+    """
+    Convert a PDF file to JSON using Mistral's OCR API with error handling.
+
+    Args:
+        api_key: Mistral API key
+        pdf_path: Path to the PDF file
+        model: OCR model to use (default: mistral-ocr-latest)
+
+    Returns:
+        Dictionary with OCR results
+    """
+    from mistralai import Mistral
+
+    if not api_key:
+        raise ValueError("MISTRAL_API_KEY environment variable is required for OCR operations")
+
     pdf_file = Path(pdf_path)
     if not pdf_file.is_file():
         raise FileNotFoundError(f"PDF file not found: {pdf_path}")
+
+    client = Mistral(api_key=api_key)
 
     try:
         # Upload the file to Mistral API
@@ -72,7 +107,7 @@ def process_pdf_to_json(client, pdf_path):
                 "type": "file",
                 "file_id": uploaded_file.id,
             },
-            model="mistral-ocr-latest",
+            model=model,
             include_image_base64=True,
         )
     except Exception as e:
@@ -85,16 +120,3 @@ def process_pdf_to_json(client, pdf_path):
         print("Error: OCR response does not contain 'pages'.")
         sys.exit(1)
     return response_dict
-
-
-def check_available_models(client):
-    """Check which models are available."""
-    try:
-        models = client.models.list()
-        print("Available models:")
-        for model in models.data:
-            print(f"- {model.id}")
-        return [model.id for model in models.data]
-    except Exception as e:
-        print(f"Error checking models: {e}")
-        return []

@@ -3,8 +3,7 @@ import argparse
 import os
 import sys
 import logging
-from mistralai import Mistral
-from .api import check_available_models, process_pdf_to_json
+from .api import process_pdf_to_json
 from .core import process_document, generate_audio
 from .audio.formats import AudioFormatHandler
 # Configure logging
@@ -104,89 +103,83 @@ def create_parser():
         "--voice_clone",
         help="Path to a reference audio file for voice cloning. Supported formats: WAV, MP3, FLAC, M4A.",
     )
-    
-    # Refinement options
-    refinement_group = parser.add_argument_group('Content Refinement Options')
-    refinement_group.add_argument(
-        "--enable_refinement",
-        action="store_true",
-        help="Explicitly enable the multi-pass refinement pipeline (enabled by default).",
+
+    # LLM Model Selection options
+    llm_group = parser.add_argument_group('LLM Model Selection')
+    llm_group.add_argument(
+        "--transform_provider",
+        default="mistral",
+        help="LLM provider for core text transformation (default: mistral). E.g., 'mistral', 'openai', 'anthropic'.",
     )
-    refinement_group.add_argument(
-        "--disable_refinement",
-        action="store_true",
-        help="Disable the multi-pass refinement pipeline (overrides --enable_refinement).",
+    llm_group.add_argument(
+        "--transform_model",
+        default="mistral-small-latest",
+        help="LLM model for core text transformation (default: mistral-small-latest).",
     )
-    refinement_group.add_argument(
+    llm_group.add_argument(
+        "--math_provider",
+        default="mistral",
+        help="LLM provider for math expression handling (default: mistral).",
+    )
+    llm_group.add_argument(
+        "--math_model",
+        default="mistral-small-latest",
+        help="LLM model for math expression handling (default: mistral-small-latest).",
+    )
+    llm_group.add_argument(
+        "--citations_provider",
+        default="mistral",
+        help="LLM provider for citations and references (default: mistral).",
+    )
+    llm_group.add_argument(
+        "--citations_model",
+        default="mistral-small-latest",
+        help="LLM model for citations and references (default: mistral-small-latest).",
+    )
+    llm_group.add_argument(
+        "--language_provider",
+        default="mistral",
+        help="LLM provider for language and style refinement (default: mistral).",
+    )
+    llm_group.add_argument(
+        "--language_model",
+        default="mistral-small-latest",
+        help="LLM model for language and style refinement (default: mistral-small-latest).",
+    )
+    llm_group.add_argument(
         "--enable_math_refinement",
         action="store_true",
-        help="Explicitly enable the mathematical content refinement pass (enabled by default).",
+        default=True,
+        help="Enable mathematical content processing (default: True).",
     )
-    refinement_group.add_argument(
+    llm_group.add_argument(
         "--disable_math_refinement",
         action="store_true",
-        help="Disable the mathematical content refinement pass (overrides --enable_math_refinement).",
+        help="Disable mathematical content processing.",
     )
-    refinement_group.add_argument(
-        "--enable_structure_citation_optimization",
+    llm_group.add_argument(
+        "--enable_citations_refinement",
         action="store_true",
-        help="Explicitly enable the structure and citation optimization pass (enabled by default).",
+        default=True,
+        help="Enable citations and references processing (default: True).",
     )
-    refinement_group.add_argument(
-        "--disable_structure_citation_optimization",
+    llm_group.add_argument(
+        "--disable_citations_refinement",
         action="store_true",
-        help="Disable the structure and citation optimization pass (overrides --enable_structure_citation_optimization).",
+        help="Disable citations and references processing.",
     )
-    refinement_group.add_argument(
-        "--enable_language_style_refinement",
+    llm_group.add_argument(
+        "--enable_language_refinement",
         action="store_true",
-        help="Explicitly enable the language and style refinement pass (enabled by default).",
+        default=True,
+        help="Enable language and style refinement (default: True).",
     )
-    refinement_group.add_argument(
-        "--disable_language_style_refinement",
+    llm_group.add_argument(
+        "--disable_language_refinement",
         action="store_true",
-        help="Disable the language and style refinement pass (overrides --enable_language_style_refinement).",
+        help="Disable language and style refinement.",
     )
-    refinement_group.add_argument(
-        "--enable_audio_specific_optimization",
-        action="store_true",
-        help="Explicitly enable the audio-specific optimization pass (enabled by default).",
-    )
-    refinement_group.add_argument(
-        "--disable_audio_specific_optimization",
-        action="store_true",
-        help="Disable the audio-specific optimization pass (overrides --enable_audio_specific_optimization).",
-    )
-    refinement_group.add_argument(
-        "--math_refinement_intensity",
-        type=float,
-        default=0.5,
-        help="Intensity of the mathematical content refinement (0.0-1.0, default: 0.5).",
-    )
-    refinement_group.add_argument(
-        "--structure_citation_intensity",
-        type=float,
-        default=0.5,
-        help="Intensity of the structure and citation optimization (0.0-1.0, default: 0.5).",
-    )
-    refinement_group.add_argument(
-        "--language_style_intensity",
-        type=float,
-        default=0.5,
-        help="Intensity of the language and style refinement (0.0-1.0, default: 0.5).",
-    )
-    refinement_group.add_argument(
-        "--audio_specific_intensity",
-        type=float,
-        default=0.5,
-        help="Intensity of the audio-specific optimization (0.0-1.0, default: 0.5).",
-    )
-    refinement_group.add_argument(
-        "--target_audience",
-        choices=["academic", "general"],
-        default="academic",
-        help="Target audience for the refinement (default: academic).",
-    )
+
     # General options
     general_group = parser.add_argument_group('General Options')
     general_group.add_argument(
@@ -205,11 +198,6 @@ def create_parser():
         "--overwrite",
         action="store_true",
         help="Overwrite output files if they exist (default: False).",
-    )
-    general_group.add_argument(
-        "--list_models",
-        action="store_true",
-        help="List available Mistral models and exit.",
     )
     general_group.add_argument(
         "--list_audio_formats",
@@ -234,7 +222,7 @@ def validate_api_key():
 def validate_arguments(args, parser):
     """Validate command-line arguments."""
     # Skip validation for utility commands
-    if args.list_models or args.list_audio_formats:
+    if args.list_audio_formats:
         return
     # Validate required arguments
     if not args.input_pdf:
@@ -279,65 +267,40 @@ def main():
     """Main entry point for the CLI application."""
     parser = create_parser()
     args = parser.parse_args()
-    
-    # Initialize refinement flags with default values if not explicitly set
-    if not hasattr(args, 'enable_refinement'):
-        args.enable_refinement = True
-    if not hasattr(args, 'enable_math_refinement'):
-        args.enable_math_refinement = True
-    if not hasattr(args, 'enable_structure_citation_optimization'):
-        args.enable_structure_citation_optimization = True
-    if not hasattr(args, 'enable_language_style_refinement'):
-        args.enable_language_style_refinement = True
-    if not hasattr(args, 'enable_audio_specific_optimization'):
-        args.enable_audio_specific_optimization = True
-    
-    # Process enable/disable flags for refinement
-    if hasattr(args, 'disable_refinement') and args.disable_refinement:
-        args.enable_refinement = False
-    if hasattr(args, 'disable_math_refinement') and args.disable_math_refinement:
-        args.enable_math_refinement = False
-    if hasattr(args, 'disable_structure_citation_optimization') and args.disable_structure_citation_optimization:
-        args.enable_structure_citation_optimization = False
-    if hasattr(args, 'disable_language_style_refinement') and args.disable_language_style_refinement:
-        args.enable_language_style_refinement = False
-    if hasattr(args, 'disable_audio_specific_optimization') and args.disable_audio_specific_optimization:
-        args.enable_audio_specific_optimization = False
-    
+
     # List audio formats
     if args.list_audio_formats:
         list_audio_formats()
         sys.exit(0)
-    
-    # Initialize Mistral client with API key
+
+    # Validate API key (needed for OCR)
     api_key = validate_api_key()
-    client = Mistral(api_key=api_key)
-    
-    # Test API key validity and optionally list models
-    try:
-        if args.list_models:
-            check_available_models(client)
-            sys.exit(0)
-        else:
-            client.models.list()
-    except Exception as e:
-        print(f"Invalid API key or connection error: {e}")
-        sys.exit(1)
-    
+
+    # Process enable/disable flags for LLM stages
+    if hasattr(args, 'disable_math_refinement') and args.disable_math_refinement:
+        args.enable_math_refinement = False
+    if hasattr(args, 'disable_citations_refinement') and args.disable_citations_refinement:
+        args.enable_citations_refinement = False
+    if hasattr(args, 'disable_language_refinement') and args.disable_language_refinement:
+        args.enable_language_refinement = False
+
     # Validate arguments
     validate_arguments(args, parser)
-    
+
     if args.verbose:
-        print(f"Using text model: {args.text_model}")
+        print(f"Transform: {args.transform_provider}/{args.transform_model}")
+        print(f"Math: {args.math_provider}/{args.math_model}")
+        print(f"Citations: {args.citations_provider}/{args.citations_model}")
+        print(f"Language: {args.language_provider}/{args.language_model}")
         if args.include_images:
-            print(f"Using image model: {args.image_model}")
-    
-    # Convert PDF to JSON
+            print(f"Image model: {args.image_model}")
+
+    # Convert PDF to JSON using OCR (Mistral)
     print("Processing PDF with OCR...")
-    doc = process_pdf_to_json(client, args.input_pdf)
-    
+    doc = process_pdf_to_json(api_key, args.input_pdf)
+
     # Process the document
-    final_transformed_text = process_document(client, doc, args)
+    final_transformed_text = process_document(doc, args, api_key)
     
     # Write the transformed text to the output file if requested
     if args.output_file:
