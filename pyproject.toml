@@ -1,63 +1,62 @@
 [build-system]
-requires = ["hatchling"]
-build-backend = "hatchling.build"
+requires = ["poetry-core>=1.0.0"]
+build-backend = "poetry.core.masonry.api"
 
-[project]
+[tool.poetry]
 name = "pdf-to-audio"
 version = "0.1.3"
 description = "A tool to convert PDFs to TTS-friendly text using Mistral API"
-authors = [
-    {name = "sjvrensburg", email = "stefanj@mandela.ac.za"}
-]
-license = {text = "GPL-3.0-or-later"}
+authors = ["sjvrensburg <stefanj@mandela.ac.za>"]
+license = "GPL-3.0-or-later"
 readme = "README.md"
-requires-python = ">=3.8"
+repository = "https://github.com/sjvrensburg/pdf-to-audio"
+homepage = "https://github.com/sjvrensburg/pdf-to-audio"
 keywords = ["pdf", "audio", "tts", "text-to-speech", "mistral", "ai"]
 classifiers = [
     "Development Status :: 4 - Beta",
     "Intended Audience :: Developers",
-    "Intended Audience :: Science/Research",
-    "License :: OSI Approved :: GNU General Public License v3 or later (GPLv3+)",
     "Operating System :: OS Independent",
-    "Programming Language :: Python :: 3",
-    "Programming Language :: Python :: 3.8",
-    "Programming Language :: Python :: 3.9",
-    "Programming Language :: Python :: 3.10",
-    "Programming Language :: Python :: 3.11",
-    "Programming Language :: Python :: 3.12",
     "Topic :: Scientific/Engineering",
-    "Topic :: Text Processing",
-    "Topic :: Multimedia :: Sound/Audio :: Speech",
-]
-dependencies = [
-    "requests>=2.32.4",
-    "mistralai>=1.9.1",
-    "tenacity>=9.1.2",
-    "tqdm>=4.67.1",
-    "chatterbox-tts>=0.1.2",
-    "torch>=2.0.0",
-    "torchaudio>=2.0.0",
-    "pydub>=0.25.1",
-    "ffmpeg-python>=0.2.0",
-    "pyyaml>=6.0",
 ]
 
-[project.optional-dependencies]
-dev = [
-    "mypy>=1.4.1",
-    "isort>=5.0.0",
-    "ruff>=0.12.2",
-    "pytest>=7.0.0",
-    "pytest-cov>=4.0.0",
-]
-interactive = [
-    "ipython>=8.0.0",
-]
+# 1. DEFINE THE CUDA SOURCE
+# Priority "explicit" means Poetry will ONLY look here for packages that ask for it.
+[[tool.poetry.source]]
+name = "pytorch_cuda"
+url = "https://download.pytorch.org/whl/cu124"
+priority = "explicit"
 
-[project.urls]
-Homepage = "https://github.com/sjvrensburg/pdf-to-audio"
-Repository = "https://github.com/sjvrensburg/pdf-to-audio"
-Issues = "https://github.com/sjvrensburg/pdf-to-audio/issues"
-
-[project.scripts]
+[tool.poetry.scripts]
 pdf-to-audio = "pdf_to_audio.cli:main"
+
+[tool.poetry.dependencies]
+# 2. PYTHON CONSTRAINT (The "Sweet Spot" for ML + LLMs)
+python = ">=3.11,<3.13"
+
+# Core Deps
+any-llm-sdk = { version = "1.4.0", extras = ["anthropic", "mistral", "openai", "zai"] }
+requests = ">=2.32.4"
+mistralai = ">=1.9.1"
+tenacity = ">=9.1.2"
+tqdm = ">=4.67.1"
+pyyaml = ">=6.0"
+
+# Audio & ML Deps
+# 3. LINK TORCH TO THE CUDA SOURCE
+torch = { version = "2.6.0", source = "pytorch_cuda" }
+torchaudio = { version = "2.6.0", source = "pytorch_cuda" }
+
+# Chatterbox likely depends on torch, but we pin torch above to control the ABI.
+chatterbox-tts = ">=0.1.2"
+pydub = ">=0.25.1"
+ffmpeg-python = ">=0.2.0"
+
+[tool.poetry.group.dev.dependencies]
+mypy = ">=1.4.1"
+isort = ">=5.0.0"
+ruff = ">=0.12.2"
+pytest = ">=7.0.0"
+pytest-cov = ">=4.0.0"
+
+[tool.poetry.group.interactive.dependencies]
+ipython = ">=8.0.0"

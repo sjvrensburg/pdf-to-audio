@@ -14,7 +14,7 @@ import torchaudio
 from tqdm import tqdm
 
 from .api import make_api_call
-from .constants import SYSTEM_PROMPT, DEFAULT_MATH_TTS_SCALE
+from .constants import CORE_TRANSFORM_PROMPT, MATH_PROMPT, CITATIONS_PROMPT, LANGUAGE_STYLE_PROMPT, DEFAULT_MATH_TTS_SCALE
 from .image import process_page
 from .utils import split_chunk, post_process_output
 from .audio.chunking import TextChunker, MATH_TAG_PATTERN
@@ -23,8 +23,7 @@ from .audio.formats import AudioFormatHandler
 from .tts.chatterbox_tts import ChatterboxTTSEngine, DEFAULT_TTS_SETTINGS, ACADEMIC_TTS_SETTINGS, MATH_HEAVY_SETTINGS
 from .tts.audio_processing import AudioProcessor
 from .config import load_config, merge_with_args, get_math_tts_settings
-from .refinement.pipeline import RefinementPipeline
-from .refinement.base import RefinementConfig
+from .llm_provider import create_llm_provider
 
 logger = logging.getLogger(__name__)
 
@@ -53,104 +52,175 @@ def temp_directory(base_dir=None):
             logger.warning(f"Failed to remove temporary directory {temp_dir}: {e}")
 
 
-def process_document(client, doc, args):
-    """Process the entire document and return the transformed text."""
+def process_document(doc, args, api_key: str = None):
+    """
+    Process the entire document through the pipeline stages.
+
+    This now uses focused, model-agnostic stages:
+    1. Core text transformation (using configurable LLM)
+    2. Math expression handling (using configurable LLM)
+    3. Citations/references optimization (using configurable LLM)
+    4. Language/style refinement (using configurable LLM)
+
+    Args:
+        doc: Document with 'pages' from OCR
+        args: Command-line arguments
+        api_key: API key for image processing (Mistral)
+
+    Returns:
+        The processed text ready for TTS
+    """
     # Load configuration
     config = load_config(args.config_file if hasattr(args, 'config_file') else None)
     merged_config = merge_with_args(config, args)
-    
-    # Get system prompt (custom or default)
-    system_prompt = merged_config["mistral"]["system_prompt"] or SYSTEM_PROMPT
-    
+
+    # Get API key from environment if not provided
+    if not api_key:
+        api_key = os.environ.get("MISTRAL_API_KEY")
+
+    # Initialize LLM providers for each stage
+    # Each provider will fetch its own API key based on provider type
+    transform_provider = create_llm_provider(
+        provider=merged_config["llm"].get("transform_provider", "mistral"),
+        model=merged_config["llm"].get("transform_model", "mistral-small-latest"),
+        api_key=None,  # Let provider fetch its own API key from environment
+        temperature=merged_config["llm"].get("temperature", 0.2),
+        max_tokens=merged_config["llm"].get("max_tokens", 4000),
+    )
+
+    math_provider = create_llm_provider(
+        provider=merged_config["llm"].get("math_provider", "mistral"),
+        model=merged_config["llm"].get("math_model", "mistral-small-latest"),
+        api_key=None,  # Let provider fetch its own API key from environment
+        temperature=merged_config["llm"].get("temperature", 0.2),
+        max_tokens=merged_config["llm"].get("max_tokens", 4000),
+    )
+
+    citations_provider = create_llm_provider(
+        provider=merged_config["llm"].get("citations_provider", "mistral"),
+        model=merged_config["llm"].get("citations_model", "mistral-small-latest"),
+        api_key=None,  # Let provider fetch its own API key from environment
+        temperature=merged_config["llm"].get("temperature", 0.2),
+        max_tokens=merged_config["llm"].get("max_tokens", 4000),
+    )
+
+    language_provider = create_llm_provider(
+        provider=merged_config["llm"].get("language_provider", "mistral"),
+        model=merged_config["llm"].get("language_model", "mistral-small-latest"),
+        api_key=None,  # Let provider fetch its own API key from environment
+        temperature=merged_config["llm"].get("temperature", 0.2),
+        max_tokens=merged_config["llm"].get("max_tokens", 4000),
+    )
+
+    # ========== STAGE 1: Core Text Transformation ==========
+    print("Stage 1: Core text transformation...")
     transformed_chunks = []
     pages = doc['pages']
     pages_per_chunk = merged_config["general"]["pages_per_chunk"]
     total_chunks = (len(pages) + pages_per_chunk - 1) // pages_per_chunk
-    
+
     print(f"Processing {len(pages)} pages in {total_chunks} chunks...")
-    
+
     for i in tqdm(range(0, len(pages), pages_per_chunk), desc="Processing chunks", total=total_chunks):
         if merged_config["general"]["verbose"]:
             print(f"\nProcessing chunk {i//pages_per_chunk + 1} of {total_chunks}")
-        
+
         chunk_pages = pages[i:i + pages_per_chunk]
         modified_markdowns = []
-        
+
         for page_idx, page in enumerate(chunk_pages):
             if merged_config["general"]["verbose"]:
                 print(f"Processing page {i + page_idx + 1}")
-            
+
             if merged_config["general"]["include_images"]:
-                modified_markdown = process_page(page, client, merged_config["mistral"]["image_model"])
+                modified_markdown = process_page(
+                    page,
+                    api_key,
+                    merged_config["image"]["image_model"]
+                )
             else:
                 modified_markdown = page['markdown']
             modified_markdowns.append(modified_markdown)
-        
+
         chunk_content = "\n\n".join(modified_markdowns)
         sub_chunks = split_chunk(chunk_content)
-        
+
         if merged_config["general"]["verbose"]:
             print(f"Split into {len(sub_chunks)} sub-chunks")
-        
+
         transformed_text = ""
         for sub_chunk_idx, sub_chunk in enumerate(sub_chunks):
             if merged_config["general"]["verbose"]:
                 print(f"Processing sub-chunk {sub_chunk_idx + 1}/{len(sub_chunks)}")
-            
+
             messages = [
-                {"role": "system", "content": system_prompt},
+                {"role": "system", "content": CORE_TRANSFORM_PROMPT},
                 {"role": "user", "content": sub_chunk},
             ]
-            
+
             try:
-                response = make_api_call(client, merged_config["mistral"]["text_model"], messages)
-                if response and response.choices:
-                    transformed_text += response.choices[0].message.content + "\n\n"
+                response = make_api_call(transform_provider, messages)
+                if response:
+                    transformed_text += response + "\n\n"
             except Exception as e:
                 print(f"Error processing sub-chunk: {e}")
                 # Continue with remaining chunks
                 continue
-        
+
         transformed_chunks.append(transformed_text)
-        
+
         # Add a small delay to avoid hitting rate limits
         time.sleep(0.5)
 
-    # Combine all transformed chunks into a single text
-    final_transformed_text = "\n\n".join(transformed_chunks)
-    
-    # Post-process the output
-    final_transformed_text = post_process_output(final_transformed_text)
-    
-    # Apply multi-pass refinement if enabled
-    if merged_config["refinement"]["enable_refinement"]:
-        print("Applying multi-pass refinement...")
-        
-        # Create refinement config from merged config
-        refinement_config = RefinementConfig(
-            enable_math_refinement=merged_config["refinement"]["enable_math_refinement"],
-            enable_structure_citation_optimization=merged_config["refinement"]["enable_structure_citation_optimization"],
-            enable_language_style_refinement=merged_config["refinement"]["enable_language_style_refinement"],
-            enable_audio_specific_optimization=merged_config["refinement"]["enable_audio_specific_optimization"],
-            math_refinement_intensity=merged_config["refinement"]["math_refinement_intensity"],
-            structure_citation_intensity=merged_config["refinement"]["structure_citation_intensity"],
-            language_style_intensity=merged_config["refinement"]["language_style_intensity"],
-            audio_specific_intensity=merged_config["refinement"]["audio_specific_intensity"],
-            target_audience=merged_config["refinement"]["target_audience"],
-            fallback_on_error=merged_config["refinement"]["fallback_on_error"]
-        )
-        
-        # Initialize and run the refinement pipeline
-        pipeline = RefinementPipeline(config=refinement_config)
-        refined_text = pipeline.refine(final_transformed_text, client, merged_config)
-        
-        # Post-process the refined output again to ensure consistency
-        final_transformed_text = post_process_output(refined_text)
-        
-        print("Multi-pass refinement complete")
-    else:
-        print("Multi-pass refinement is disabled, skipping")
-    
+    # Combine all transformed chunks
+    core_transformed_text = "\n\n".join(transformed_chunks)
+    core_transformed_text = post_process_output(core_transformed_text)
+
+    # ========== STAGE 2: Math Expression Handling ==========
+    if merged_config["general"].get("enable_math_refinement", True):
+        print("\nStage 2: Processing math expressions...")
+        messages = [
+            {"role": "system", "content": MATH_PROMPT},
+            {"role": "user", "content": core_transformed_text},
+        ]
+        try:
+            math_processed_text = make_api_call(math_provider, messages)
+            if math_processed_text:
+                core_transformed_text = math_processed_text
+        except Exception as e:
+            print(f"Warning: Math processing failed, continuing with previous version: {e}")
+
+    # ========== STAGE 3: Citations/References Optimization ==========
+    if merged_config["general"].get("enable_citations_refinement", True):
+        print("Stage 3: Optimizing citations and references...")
+        messages = [
+            {"role": "system", "content": CITATIONS_PROMPT},
+            {"role": "user", "content": core_transformed_text},
+        ]
+        try:
+            citations_processed_text = make_api_call(citations_provider, messages)
+            if citations_processed_text:
+                core_transformed_text = citations_processed_text
+        except Exception as e:
+            print(f"Warning: Citations processing failed, continuing with previous version: {e}")
+
+    # ========== STAGE 4: Language/Style Refinement ==========
+    if merged_config["general"].get("enable_language_refinement", True):
+        print("Stage 4: Refining language and style for audio...")
+        messages = [
+            {"role": "system", "content": LANGUAGE_STYLE_PROMPT},
+            {"role": "user", "content": core_transformed_text},
+        ]
+        try:
+            language_processed_text = make_api_call(language_provider, messages)
+            if language_processed_text:
+                core_transformed_text = language_processed_text
+        except Exception as e:
+            print(f"Warning: Language processing failed, continuing with previous version: {e}")
+
+    # Final post-processing
+    final_transformed_text = post_process_output(core_transformed_text)
+
     return final_transformed_text
 
 

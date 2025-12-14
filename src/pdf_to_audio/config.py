@@ -14,14 +14,31 @@ logger = logging.getLogger(__name__)
 
 # Default configuration values
 DEFAULT_CONFIG = {
-    # Mistral settings
-    "mistral": {
-        "text_model": "mistral-small-latest",
-        "image_model": "pixtral-12b-latest",
+    # LLM settings (now provider-agnostic)
+    "llm": {
+        "api_key": None,  # Will use environment variable if None
         "temperature": 0.2,
-        "system_prompt": None,  # Will use the one from constants.py if None
+        # Core text transformation
+        "transform_provider": "mistral",
+        "transform_model": "mistral-small-latest",
+        # Math expression handling
+        "math_provider": "mistral",
+        "math_model": "mistral-small-latest",
+        # Citations and references
+        "citations_provider": "mistral",
+        "citations_model": "mistral-small-latest",
+        # Language and style refinement
+        "language_provider": "mistral",
+        "language_model": "mistral-small-latest",
+        # Max tokens for LLM responses
+        "max_tokens": 4000,
     },
-    
+
+    # Image model settings (still Mistral-specific for now)
+    "image": {
+        "image_model": "pixtral-12b-latest",
+    },
+
     # TTS settings
     "tts": {
         "exaggeration": 0.5,
@@ -34,7 +51,7 @@ DEFAULT_CONFIG = {
         "global_normalization": False,
         "audio_prompt_path": None,  # Path to reference audio file for voice cloning
     },
-    
+
     # General settings
     "general": {
         "temp_dir": None,  # Will use system temp dir if None
@@ -43,21 +60,10 @@ DEFAULT_CONFIG = {
         "overwrite": False,
         "verbose": False,
         "force_cpu": False,
-    },
-    
-    # Refinement settings
-    "refinement": {
-        "enable_refinement": True,  # Master switch for the refinement pipeline
+        # Pipeline stage enable/disable
         "enable_math_refinement": True,
-        "enable_structure_citation_optimization": True,
-        "enable_language_style_refinement": True,
-        "enable_audio_specific_optimization": True,
-        "math_refinement_intensity": 0.5,
-        "structure_citation_intensity": 0.5,
-        "language_style_intensity": 0.5,
-        "audio_specific_intensity": 0.5,
-        "target_audience": "academic",  # "academic" or "general"
-        "fallback_on_error": True,
+        "enable_citations_refinement": True,
+        "enable_language_refinement": True,
     }
 }
 
@@ -116,30 +122,44 @@ def merge_with_args(config: Dict[str, Any], args) -> Dict[str, Any]:
     """
     Merge configuration with command-line arguments.
     Command-line arguments take precedence over configuration file values.
-    
+
     Args:
         config: The configuration dictionary.
         args: The command-line arguments.
-        
+
     Returns:
         The merged configuration dictionary.
     """
     # Create a copy of the config to avoid modifying the original
     merged_config = {
-        "mistral": config["mistral"].copy(),
-        "tts": config["tts"].copy(),
-        "general": config["general"].copy(),
-        "refinement": config["refinement"].copy() if "refinement" in config else DEFAULT_CONFIG["refinement"].copy()
+        "llm": config.get("llm", DEFAULT_CONFIG["llm"]).copy(),
+        "image": config.get("image", DEFAULT_CONFIG["image"]).copy(),
+        "tts": config.get("tts", DEFAULT_CONFIG["tts"]).copy(),
+        "general": config.get("general", DEFAULT_CONFIG["general"]).copy(),
     }
-    
-    # Update Mistral settings
-    if hasattr(args, 'text_model') and args.text_model is not None:
-        merged_config["mistral"]["text_model"] = args.text_model
+
+    # Update LLM settings (provider and model for each stage)
+    if hasattr(args, 'transform_provider') and args.transform_provider is not None:
+        merged_config["llm"]["transform_provider"] = args.transform_provider
+    if hasattr(args, 'transform_model') and args.transform_model is not None:
+        merged_config["llm"]["transform_model"] = args.transform_model
+    if hasattr(args, 'math_provider') and args.math_provider is not None:
+        merged_config["llm"]["math_provider"] = args.math_provider
+    if hasattr(args, 'math_model') and args.math_model is not None:
+        merged_config["llm"]["math_model"] = args.math_model
+    if hasattr(args, 'citations_provider') and args.citations_provider is not None:
+        merged_config["llm"]["citations_provider"] = args.citations_provider
+    if hasattr(args, 'citations_model') and args.citations_model is not None:
+        merged_config["llm"]["citations_model"] = args.citations_model
+    if hasattr(args, 'language_provider') and args.language_provider is not None:
+        merged_config["llm"]["language_provider"] = args.language_provider
+    if hasattr(args, 'language_model') and args.language_model is not None:
+        merged_config["llm"]["language_model"] = args.language_model
+
+    # Update image model settings
     if hasattr(args, 'image_model') and args.image_model is not None:
-        merged_config["mistral"]["image_model"] = args.image_model
-    if hasattr(args, 'system_prompt') and args.system_prompt is not None:
-        merged_config["mistral"]["system_prompt"] = args.system_prompt
-    
+        merged_config["image"]["image_model"] = args.image_model
+
     # Update TTS settings
     if hasattr(args, 'exaggeration') and args.exaggeration is not None:
         merged_config["tts"]["exaggeration"] = args.exaggeration
@@ -159,7 +179,7 @@ def merge_with_args(config: Dict[str, Any], args) -> Dict[str, Any]:
         merged_config["tts"]["global_normalization"] = args.global_normalization
     if hasattr(args, 'voice_clone') and args.voice_clone is not None:
         merged_config["tts"]["audio_prompt_path"] = args.voice_clone
-    
+
     # Update general settings
     if hasattr(args, 'pages_per_chunk') and args.pages_per_chunk is not None:
         merged_config["general"]["pages_per_chunk"] = args.pages_per_chunk
@@ -173,31 +193,15 @@ def merge_with_args(config: Dict[str, Any], args) -> Dict[str, Any]:
         merged_config["general"]["force_cpu"] = args.force_cpu
     if hasattr(args, 'temp_dir') and args.temp_dir is not None:
         merged_config["general"]["temp_dir"] = args.temp_dir
-    
-    # Update refinement settings
-    if hasattr(args, 'enable_refinement'):
-        merged_config["refinement"]["enable_refinement"] = args.enable_refinement
+
+    # Update LLM stage enable/disable flags
     if hasattr(args, 'enable_math_refinement'):
-        merged_config["refinement"]["enable_math_refinement"] = args.enable_math_refinement
-    if hasattr(args, 'enable_structure_citation_optimization'):
-        merged_config["refinement"]["enable_structure_citation_optimization"] = args.enable_structure_citation_optimization
-    if hasattr(args, 'enable_language_style_refinement'):
-        merged_config["refinement"]["enable_language_style_refinement"] = args.enable_language_style_refinement
-    if hasattr(args, 'enable_audio_specific_optimization'):
-        merged_config["refinement"]["enable_audio_specific_optimization"] = args.enable_audio_specific_optimization
-    if hasattr(args, 'math_refinement_intensity') and args.math_refinement_intensity is not None:
-        merged_config["refinement"]["math_refinement_intensity"] = args.math_refinement_intensity
-    if hasattr(args, 'structure_citation_intensity') and args.structure_citation_intensity is not None:
-        merged_config["refinement"]["structure_citation_intensity"] = args.structure_citation_intensity
-    if hasattr(args, 'language_style_intensity') and args.language_style_intensity is not None:
-        merged_config["refinement"]["language_style_intensity"] = args.language_style_intensity
-    if hasattr(args, 'audio_specific_intensity') and args.audio_specific_intensity is not None:
-        merged_config["refinement"]["audio_specific_intensity"] = args.audio_specific_intensity
-    if hasattr(args, 'target_audience') and args.target_audience is not None:
-        merged_config["refinement"]["target_audience"] = args.target_audience
-    if hasattr(args, 'fallback_on_error'):
-        merged_config["refinement"]["fallback_on_error"] = args.fallback_on_error
-    
+        merged_config["general"]["enable_math_refinement"] = args.enable_math_refinement
+    if hasattr(args, 'enable_citations_refinement'):
+        merged_config["general"]["enable_citations_refinement"] = args.enable_citations_refinement
+    if hasattr(args, 'enable_language_refinement'):
+        merged_config["general"]["enable_language_refinement"] = args.enable_language_refinement
+
     return merged_config
 
 
