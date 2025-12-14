@@ -28,6 +28,93 @@ from .llm_provider import create_llm_provider
 logger = logging.getLogger(__name__)
 
 
+def process_stage_in_chunks(
+    text: str,
+    stage_name: str,
+    system_prompt: str,
+    provider,
+    max_tokens: int = 4000,
+    verbose: bool = False
+) -> str:
+    """
+    Process text through an LLM stage using chunking to handle long documents.
+
+    This function splits long documents into manageable chunks, processes each chunk
+    independently, and recombines the results. This prevents content loss due to
+    output token limits.
+
+    Args:
+        text: The text to process
+        stage_name: Name of the processing stage (for logging)
+        system_prompt: The system prompt to use for this stage
+        provider: LLM provider instance
+        max_tokens: Maximum tokens per chunk (default: 4000)
+        verbose: Whether to print verbose output
+
+    Returns:
+        The processed text
+    """
+    # Check if the text is small enough to process in one go
+    estimated_tokens = len(text) // 4  # Rough estimate: 4 chars per token
+
+    if estimated_tokens <= max_tokens * 0.8:  # Use 80% threshold for safety
+        # Small enough to process in one API call
+        if verbose:
+            print(f"  Processing in single call ({estimated_tokens} estimated tokens)")
+
+        messages = [
+            {"role": "system", "content": system_prompt},
+            {"role": "user", "content": text},
+        ]
+
+        try:
+            response = make_api_call(provider, messages)
+            if response:
+                return response
+        except Exception as e:
+            logger.warning(f"{stage_name} processing failed: {e}")
+            print(f"Warning: {stage_name} processing failed, continuing with previous version: {e}")
+            return text
+
+    # Text is too long, need to process in chunks
+    chunks = split_chunk(text, max_tokens=max_tokens)
+    total_chunks = len(chunks)
+
+    if verbose:
+        print(f"  Splitting into {total_chunks} chunks (estimated input: {estimated_tokens} tokens)")
+
+    processed_chunks = []
+
+    for i, chunk in enumerate(tqdm(chunks, desc=f"{stage_name}")):
+        if verbose:
+            print(f"  Processing chunk {i+1}/{total_chunks}")
+
+        messages = [
+            {"role": "system", "content": system_prompt},
+            {"role": "user", "content": chunk},
+        ]
+
+        try:
+            response = make_api_call(provider, messages)
+            if response:
+                processed_chunks.append(response)
+            else:
+                # If no response, keep original chunk
+                processed_chunks.append(chunk)
+        except Exception as e:
+            logger.warning(f"Error processing chunk {i+1}: {e}")
+            print(f"Warning: Error processing chunk {i+1}, keeping original: {e}")
+            processed_chunks.append(chunk)
+
+        # Add a small delay to avoid hitting rate limits
+        if i < total_chunks - 1:  # Don't delay after the last chunk
+            time.sleep(0.5)
+
+    # Combine all processed chunks
+    result = "\n\n".join(processed_chunks)
+    return post_process_output(result)
+
+
 @contextmanager
 def temp_directory(base_dir=None):
     """
@@ -179,44 +266,38 @@ def process_document(doc, args, api_key: str = None):
     # ========== STAGE 2: Math Expression Handling ==========
     if merged_config["general"].get("enable_math_refinement", True):
         print("\nStage 2: Processing math expressions...")
-        messages = [
-            {"role": "system", "content": MATH_PROMPT},
-            {"role": "user", "content": core_transformed_text},
-        ]
-        try:
-            math_processed_text = make_api_call(math_provider, messages)
-            if math_processed_text:
-                core_transformed_text = math_processed_text
-        except Exception as e:
-            print(f"Warning: Math processing failed, continuing with previous version: {e}")
+        core_transformed_text = process_stage_in_chunks(
+            text=core_transformed_text,
+            stage_name="Math processing",
+            system_prompt=MATH_PROMPT,
+            provider=math_provider,
+            max_tokens=merged_config["llm"].get("max_tokens", 4000),
+            verbose=merged_config["general"]["verbose"]
+        )
 
     # ========== STAGE 3: Citations/References Optimization ==========
     if merged_config["general"].get("enable_citations_refinement", True):
         print("Stage 3: Optimizing citations and references...")
-        messages = [
-            {"role": "system", "content": CITATIONS_PROMPT},
-            {"role": "user", "content": core_transformed_text},
-        ]
-        try:
-            citations_processed_text = make_api_call(citations_provider, messages)
-            if citations_processed_text:
-                core_transformed_text = citations_processed_text
-        except Exception as e:
-            print(f"Warning: Citations processing failed, continuing with previous version: {e}")
+        core_transformed_text = process_stage_in_chunks(
+            text=core_transformed_text,
+            stage_name="Citations optimization",
+            system_prompt=CITATIONS_PROMPT,
+            provider=citations_provider,
+            max_tokens=merged_config["llm"].get("max_tokens", 4000),
+            verbose=merged_config["general"]["verbose"]
+        )
 
     # ========== STAGE 4: Language/Style Refinement ==========
     if merged_config["general"].get("enable_language_refinement", True):
         print("Stage 4: Refining language and style for audio...")
-        messages = [
-            {"role": "system", "content": LANGUAGE_STYLE_PROMPT},
-            {"role": "user", "content": core_transformed_text},
-        ]
-        try:
-            language_processed_text = make_api_call(language_provider, messages)
-            if language_processed_text:
-                core_transformed_text = language_processed_text
-        except Exception as e:
-            print(f"Warning: Language processing failed, continuing with previous version: {e}")
+        core_transformed_text = process_stage_in_chunks(
+            text=core_transformed_text,
+            stage_name="Language/style refinement",
+            system_prompt=LANGUAGE_STYLE_PROMPT,
+            provider=language_provider,
+            max_tokens=merged_config["llm"].get("max_tokens", 4000),
+            verbose=merged_config["general"]["verbose"]
+        )
 
     # Final post-processing
     final_transformed_text = post_process_output(core_transformed_text)
