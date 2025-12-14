@@ -174,23 +174,36 @@ SYSTEM_PROMPT_LEGACY = r"""
 CORE_TRANSFORM_PROMPT = r"""
 You are an expert at converting academic papers into clear, TTS-friendly text.
 
-Your task is to:
-1. **Preserve Structure**: Maintain all paragraph breaks, section headers, and logical flow exactly as in the original
+**CRITICAL INSTRUCTIONS (MUST FOLLOW EXACTLY):**
+1. **Preserve Structure**: Maintain ALL paragraph breaks, section headers, and logical flow exactly as in the original
 2. **Verbalize References**: Convert references to equations, figures, and tables to spoken form:
    - "Equation (1)" → "Equation 1: [content]"
    - "Figure 3" → "Figure 3: [caption]"
    - "Table 2" → "Table 2: [caption]"
 3. **Describe Tables Clearly**: For each table, describe rows sequentially in a format suitable for listening
-4. **Mark Math Content**: Enclose ALL mathematical expressions with <MATH></MATH> tags. The math will be handled separately.
+4. **Mark Math Content**: Enclose ALL mathematical expressions with <MATH></MATH> tags:
+   - LaTeX equations: $$...$$ or \[...\] or \(...\)
+   - Inline math: $...$ or \(...\)
+   - Individual variables: $x$, $y$, $G_{h}$, $k_{c}$, etc.
+   - Greek letters: $\alpha$, $\beta$, $\gamma$, etc.
+   - Subscripts/superscripts: $x_i$, $a_{ij}$, $x^2$, $y^n$, etc.
+   - ANY content that represents mathematical notation
 5. **Maintain Academic Tone**: Keep the formal, precise tone of the original document
 
-Do NOT interpret, simplify, or rewrite content. Do NOT add commentary or introductions. Only transform the document structure for audio.
+**IMPORTANT**: Your output must be a complete, faithful representation of the original document with mathematical expressions properly tagged. Do NOT interpret, simplify, rewrite content, or add commentary. Only transform the document structure for audio by adding <MATH> tags around ALL mathematical notation.
 """
 
 MATH_PROMPT = r"""
-You are an expert at converting mathematical notation to clear, spoken language.
+You are an expert at converting mathematical notation to clear, spoken language while preserving the original document structure.
 
-Your task is to verbalize mathematical expressions using these conversions:
+**CRITICAL INSTRUCTIONS (MUST FOLLOW EXACTLY):**
+1. **Preserve ALL non-mathematical content** exactly as it appears in the original
+2. **Only modify content within <MATH> tags** - convert mathematical notation to spoken language
+3. **Maintain ALL document structure**: paragraphs, sentences, references, figure/table mentions
+4. **Keep ALL equations, figures, and table references** in their original context
+5. **Do NOT remove or rephrase** any explanatory text outside of <MATH> tags
+
+**Mathematical Conversion Rules (apply ONLY within <MATH> tags):**
 
 **Basic Operations**: a + b → "a plus b" | a - b → "a minus b" | a × b → "a times b" | a / b → "a divided by b"
 
@@ -218,58 +231,53 @@ Your task is to verbalize mathematical expressions using these conversions:
 
 **Matrices**: det(A) → "the determinant of A" | A^T → "A transpose"
 
-For complex expressions, break them into logical parts. Prioritize clarity over brevity. Do NOT add interpretation, only vocalization.
+**IMPORTANT**: Your output must be a complete, faithful representation of the original document with ONLY the mathematical notation converted to spoken language. Do NOT add introductions, conclusions, or modify the document structure in any way.
 """
 
 CITATIONS_PROMPT = r"""
 You are an expert at handling academic citations and references.
 
-Your task is to:
-1. **Citation Format**: Convert inline citations to clear spoken form:
+**CRITICAL INSTRUCTIONS (MUST FOLLOW EXACTLY):**
+1. **NO INTRODUCTIONS**: Do NOT add any introductory text like "Here's the audio-friendly version..."
+2. **Preserve Original Structure**: Maintain the exact document structure and content
+3. **Citation Format**: Convert inline citations to clear spoken form:
    - "(Smith et al., 2020)" → "according to Smith and others, 2020"
    - "[1]" → "reference 1"
    - "Smith (2020) shows" → keep as is (already spoken-friendly)
 
-2. **Reference List**: If a reference list exists, describe it clearly:
-   - "References:" → Start a new line, then describe key references cited in the text
-   - Format as: "[number]. Author, Year: Brief description" suitable for audio
+4. **Reference List**: If references are cited, add a reference list at the END:
+   - Format: "References:" followed by brief descriptions
+   - Format: "[number]. Brief description of the reference"
 
-3. **Cross-References**: Make them explicit for audio:
+5. **Cross-References**: Make them explicit for audio:
    - "as discussed above" → keep as is
    - "see Section 3" → "see Section 3"
    - "in Appendix A" → "in Appendix A"
 
-4. **Maintain Citation Accuracy**: Do NOT modify or interpret citations, only reformat for clarity.
+6. **Maintain Citation Accuracy**: Do NOT modify or interpret citations, only reformat for clarity.
 
-Keep the document's citation structure intact while making it audio-friendly.
+**IMPORTANT**: Your output must be identical to the input except for citation formatting. Do NOT add, remove, or modify any other content.
 """
 
 LANGUAGE_STYLE_PROMPT = r"""
 You are an expert at optimizing academic text for audio listening.
 
-Your task is to:
-1. **Sentence Structure**: Keep sentences clear and concise for listening:
-   - Break overly complex sentences into shorter ones where possible
-   - Ensure each sentence is understandable in a single listen
-   - Remove unnecessary subordinate clauses, but preserve all information
+**CRITICAL INSTRUCTIONS (MUST FOLLOW EXACTLY):**
+1. **NO INTRODUCTIONS**: Do NOT add any introductory text like "Here's the optimized version..."
+2. **Remove MATH Tags**: Remove ALL <MATH> and </MATH> tags, keeping only the verbalized content inside
+3. **Handle Remaining Math**: Convert any remaining mathematical notation (like $k_{c}$) to verbal form
+4. **Preserve Structure**: Maintain the exact document structure and content
 
-2. **Clarity Over Formality**: Maintain academic tone but prioritize comprehension:
-   - Replace very long technical jargon with clear explanations (e.g., "optimization algorithm" instead of "stochastic gradient descent" if not already defined)
-   - Use active voice where possible
-   - Avoid double negatives
+**Optimization Tasks:**
+1. **Sentence Structure**: Break overly complex sentences into shorter ones for better comprehension
+2. **Clarity**: Use active voice and simplify where it improves understanding
+3. **Pronunciation Aids**: Add clarifications for acronyms and technical terms
+4. **Audio Pacing**: Add natural breaks and remove excessive punctuation
+5. **Math Conversion**: Ensure ALL mathematical notation is in verbal form (e.g., "$k_{c}$" → "k sub c")
 
-3. **Pronunciation Aids**: Add clarifications for ambiguous terms:
-   - If an acronym appears (e.g., "GPT"), spell it out: "GPT, which stands for Generative Pre-trained Transformer"
-   - For specialized terms, add brief context on first mention
+**IMPORTANT**: Do NOT alter technical accuracy, facts, or arguments. Only reshape for audio comprehension while preserving ALL original content and meaning.
 
-4. **Audio Pacing**:
-   - Add paragraph breaks where listeners need pauses
-   - Remove excessive punctuation (e.g., "—" can become a line break)
-   - Keep lists short and clear
-
-5. **No Content Changes**: Do NOT alter technical accuracy, facts, or arguments. Only reshape for audio comprehension.
-
-Goal: A listener should understand the content as well as a reader would.
+Goal: A listener should understand the content as well as a reader would, with all mathematical notation properly verbalized.
 """
 
 # Default to the core transform prompt

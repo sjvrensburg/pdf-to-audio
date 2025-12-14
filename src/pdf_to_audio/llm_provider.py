@@ -6,8 +6,8 @@ from abc import ABC, abstractmethod
 from dataclasses import dataclass
 
 try:
-    from any_llm import LLM
-    from any_llm.models import ChatMessage, ChatResponse
+    import any_llm
+    from any_llm.types.completion import ChatCompletionMessage, ChatCompletion
 except ImportError:
     raise ImportError(
         "any-llm is required for this module. "
@@ -61,46 +61,6 @@ class AnyLLMProvider(LLMProvider):
             config: LLMConfig with provider details
         """
         self.config = config
-        self.client = None
-        self._initialize_client()
-
-    def _initialize_client(self):
-        """Initialize the any-llm client based on config."""
-        # Build the model string for any-llm
-        # Format: "provider/model"
-        model_str = f"{self.config.provider}/{self.config.model}"
-
-        # Get API key from config or environment
-        api_key = self.config.api_key
-        if not api_key:
-            # Try to get from environment based on provider
-            env_keys = {
-                "openai": "OPENAI_API_KEY",
-                "anthropic": "ANTHROPIC_API_KEY",
-                "mistral": "MISTRAL_API_KEY",
-            }
-            env_key = env_keys.get(self.config.provider.lower())
-            if env_key:
-                api_key = os.getenv(env_key)
-
-        # Initialize the any-llm client
-        client_kwargs = {
-            "model": model_str,
-            "temperature": self.config.temperature,
-        }
-
-        if api_key:
-            client_kwargs["api_key"] = api_key
-
-        if self.config.base_url:
-            client_kwargs["base_url"] = self.config.base_url
-
-        try:
-            self.client = LLM(**client_kwargs)
-        except Exception as e:
-            raise RuntimeError(
-                f"Failed to initialize any-llm client for {self.config.provider}/{self.config.model}: {e}"
-            )
 
     def chat_complete(
         self,
@@ -119,24 +79,46 @@ class AnyLLMProvider(LLMProvider):
         Returns:
             The assistant's response text
         """
-        if not self.client:
-            raise RuntimeError("LLM client not initialized")
+        # Get API key from config or environment
+        api_key = self.config.api_key
+        if not api_key:
+            # Try to get from environment based on provider
+            env_keys = {
+                "openai": "OPENAI_API_KEY",
+                "anthropic": "ANTHROPIC_API_KEY",
+                "mistral": "MISTRAL_API_KEY",
+            }
+            env_key = env_keys.get(self.config.provider.lower())
+            if env_key:
+                api_key = os.getenv(env_key)
 
-        # Convert messages to any-llm format if needed
-        # any-llm accepts messages in a compatible format
+        # Use the any-llm completion function directly
         try:
-            response = self.client.chat(
+            response = any_llm.completion(
+                model=self.config.model,
+                provider=self.config.provider,
                 messages=messages,
                 temperature=temperature or self.config.temperature,
+                max_tokens=max_tokens or self.config.max_tokens,
+                api_key=api_key,
+                api_base=self.config.base_url
             )
 
             # Extract the text response
-            if isinstance(response, str):
-                return response
+            # The response is a ChatCompletion object
+            if hasattr(response, 'choices') and len(response.choices) > 0:
+                # Get the first choice's message content
+                first_choice = response.choices[0]
+                if hasattr(first_choice, 'message') and hasattr(first_choice.message, 'content'):
+                    return first_choice.message.content
+                elif hasattr(first_choice, 'content'):
+                    return first_choice.content
             elif hasattr(response, 'content'):
                 return response.content
             elif isinstance(response, dict) and 'content' in response:
                 return response['content']
+            elif isinstance(response, str):
+                return response
             else:
                 return str(response)
         except Exception as e:

@@ -1,21 +1,55 @@
 # Example configuration file for pdf-to-audio
 # This file demonstrates all available configuration options
 
-# Mistral API settings
-mistral:
-  # Model for text processing
-  text_model: "mistral-small-latest"
-  
-  # Model for image processing (if include_images is true)
-  image_model: "pixtral-12b-latest"
-  
+# LLM settings (provider-agnostic)
+llm:
   # Temperature parameter for randomness in responses (0.0-1.0)
   temperature: 0.2
   
-  # Custom system prompt (if not provided, the default one will be used)
-  # system_prompt: |
-  #   Your custom system prompt here.
-  #   You can use multiple lines.
+  # Core text transformation
+  transform_provider: "mistral"        # Provider: mistral, openai, anthropic, zai
+  transform_model: "mistral-small-latest"
+  
+  # Math expression handling
+  math_provider: "mistral"             # Provider: mistral, openai, anthropic, zai
+  math_model: "mistral-small-latest"
+  
+  # Citations and references
+  citations_provider: "mistral"        # Provider: mistral, openai, anthropic, zai
+  citations_model: "mistral-small-latest"
+  
+  # Language and style refinement
+  language_provider: "mistral"         # Provider: mistral, openai, anthropic, zai
+  language_model: "mistral-small-latest"
+  
+  # Max tokens for LLM responses
+  max_tokens: 4000
+
+# Image model settings (still Mistral-specific for now)
+image:
+  image_model: "pixtral-12b-latest"
+
+# Example: Using OpenAI for all stages
+# llm:
+#   transform_provider: "openai"
+#   transform_model: "gpt-3.5-turbo"
+#   math_provider: "openai"
+#   math_model: "gpt-3.5-turbo"
+#   citations_provider: "openai"
+#   citations_model: "gpt-3.5-turbo"
+#   language_provider: "openai"
+#   language_model: "gpt-3.5-turbo"
+
+# Example: Mixed providers (OpenAI for text, Mistral for math)
+# llm:
+#   transform_provider: "openai"
+#   transform_model: "gpt-3.5-turbo"
+#   math_provider: "mistral"
+#   math_model: "mistral-small-latest"
+#   citations_provider: "openai"
+#   citations_model: "gpt-3.5-turbo"
+#   language_provider: "mistral"
+#   language_model: "mistral-large-latest"
 
 # Text-to-Speech settings
 tts:

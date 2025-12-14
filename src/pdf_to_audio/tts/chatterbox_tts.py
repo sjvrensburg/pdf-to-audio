@@ -52,6 +52,9 @@ class ChatterboxTTSEngine:
         logger.info(f"Initializing Chatterbox TTS engine on device: {self.device}")
         
         try:
+            # Patch for perth compatibility issue
+            self._patch_perth_watermarker()
+            
             self.model = ChatterboxTTS.from_pretrained(device=self.device)
             self.sample_rate = self.model.sr
             logger.info(f"Chatterbox TTS engine initialized successfully. Sample rate: {self.sample_rate}Hz")
@@ -61,6 +64,8 @@ class ChatterboxTTSEngine:
                 logger.warning(f"Failed to initialize on {self.device}, falling back to CPU: {e}")
                 try:
                     self.device = "cpu"
+                    # Patch for perth compatibility issue
+                    self._patch_perth_watermarker()
                     self.model = ChatterboxTTS.from_pretrained(device=self.device)
                     self.sample_rate = self.model.sr
                     logger.info(f"Chatterbox TTS engine initialized successfully on CPU. Sample rate: {self.sample_rate}Hz")
@@ -70,6 +75,20 @@ class ChatterboxTTSEngine:
             else:
                 logger.error(f"Failed to initialize Chatterbox TTS engine: {e}")
                 raise
+
+    def _patch_perth_watermarker(self):
+        """
+        Patch for perth library compatibility issue.
+        Some versions of perth have PerthImplicitWatermarker as None.
+        This method ensures a working watermarker is available.
+        """
+        import perth
+        
+        # Check if PerthImplicitWatermarker is available
+        if perth.PerthImplicitWatermarker is None:
+            logger.warning("PerthImplicitWatermarker not available, using DummyWatermarker as fallback")
+            # Monkey patch the missing watermarker
+            perth.PerthImplicitWatermarker = perth.DummyWatermarker
 
     def _get_device(self, device: Optional[str] = None) -> str:
         """

@@ -79,11 +79,11 @@ def process_document(doc, args, api_key: str = None):
         api_key = os.environ.get("MISTRAL_API_KEY")
 
     # Initialize LLM providers for each stage
-    # Get API key and settings from config
+    # Each provider will fetch its own API key based on provider type
     transform_provider = create_llm_provider(
         provider=merged_config["llm"].get("transform_provider", "mistral"),
         model=merged_config["llm"].get("transform_model", "mistral-small-latest"),
-        api_key=api_key or merged_config["llm"].get("api_key"),
+        api_key=None,  # Let provider fetch its own API key from environment
         temperature=merged_config["llm"].get("temperature", 0.2),
         max_tokens=merged_config["llm"].get("max_tokens", 4000),
     )
@@ -91,7 +91,7 @@ def process_document(doc, args, api_key: str = None):
     math_provider = create_llm_provider(
         provider=merged_config["llm"].get("math_provider", "mistral"),
         model=merged_config["llm"].get("math_model", "mistral-small-latest"),
-        api_key=api_key or merged_config["llm"].get("api_key"),
+        api_key=None,  # Let provider fetch its own API key from environment
         temperature=merged_config["llm"].get("temperature", 0.2),
         max_tokens=merged_config["llm"].get("max_tokens", 4000),
     )
@@ -99,7 +99,7 @@ def process_document(doc, args, api_key: str = None):
     citations_provider = create_llm_provider(
         provider=merged_config["llm"].get("citations_provider", "mistral"),
         model=merged_config["llm"].get("citations_model", "mistral-small-latest"),
-        api_key=api_key or merged_config["llm"].get("api_key"),
+        api_key=None,  # Let provider fetch its own API key from environment
         temperature=merged_config["llm"].get("temperature", 0.2),
         max_tokens=merged_config["llm"].get("max_tokens", 4000),
     )
@@ -107,7 +107,7 @@ def process_document(doc, args, api_key: str = None):
     language_provider = create_llm_provider(
         provider=merged_config["llm"].get("language_provider", "mistral"),
         model=merged_config["llm"].get("language_model", "mistral-small-latest"),
-        api_key=api_key or merged_config["llm"].get("api_key"),
+        api_key=None,  # Let provider fetch its own API key from environment
         temperature=merged_config["llm"].get("temperature", 0.2),
         max_tokens=merged_config["llm"].get("max_tokens", 4000),
     )
