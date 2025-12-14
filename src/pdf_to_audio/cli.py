@@ -187,10 +187,6 @@ def create_parser():
         help="Path to a YAML configuration file with custom settings.",
     )
     general_group.add_argument(
-        "--system_prompt",
-        help="Custom system prompt to override the default one.",
-    )
-    general_group.add_argument(
         "--temp_dir",
         help="Directory to use for temporary files. If not provided, system temp directory will be used.",
     )

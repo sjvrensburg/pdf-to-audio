@@ -1,15 +1,15 @@
 # PDF to Audio
 
-A powerful command-line tool that converts PDF documents to TTS-friendly text and high-quality audio using Mistral AI's OCR and language models with Chatterbox TTS. This tool is specifically designed to handle academic papers with mathematical notation, converting complex formulas and equations into clear, spoken language suitable for text-to-speech conversion.
+A powerful command-line tool that converts PDF documents to TTS-friendly text and high-quality audio using Mistral AI's OCR and multiple LLM providers (Mistral, OpenAI, Anthropic, and others) with Chatterbox TTS. This tool is specifically designed to handle academic papers with mathematical notation, converting complex formulas and equations into clear, spoken language suitable for text-to-speech conversion.
 
 ## Features
 
 - **OCR Processing**: Extracts text from PDF files using Mistral's OCR API
+- **Multi-Provider LLM Support**: Use different LLM providers (Mistral, OpenAI, Anthropic, etc.) for each processing stage
 - **Mathematical Notation**: Converts LaTeX math expressions to spoken language with specialized TTS settings
 - **Image Descriptions**: Optional processing of figures, charts, and diagrams
 - **Chunked Processing**: Handles large documents efficiently
-- **Customizable Models**: Choose different Mistral models for text and image processing
-- **Multi-Pass Refinement Pipeline**: Specialized passes for optimizing content for audio consumption
+- **4-Stage Processing Pipeline**: Specialized LLM stages for text transformation, math handling, citations, and language refinement
 - **Audio Generation**: Generate high-quality audio files from PDF content using Chatterbox TTS
 - **Voice Cloning**: Clone voices from reference audio files using Chatterbox TTS's voice cloning capabilities
 - **Global Volume Normalization**: Optional global volume normalization for consistent audio levels
@@ -100,9 +100,6 @@ pdf-to-audio input.pdf --output_audio output.mp3 --voice_clone reference_voice.w
 # Combine voice cloning with other TTS settings
 pdf-to-audio input.pdf --output_audio output.mp3 --voice_clone my_voice.wav --exaggeration 0.7 --global_normalization
 
-# Use a custom system prompt
-pdf-to-audio input.pdf output.txt --system_prompt "Your custom system prompt here"
-
 # Use a configuration file
 pdf-to-audio input.pdf output.txt --config_file my_config.yaml
 
@@ -128,9 +125,6 @@ pdf-to-audio input.pdf --output_audio output.mp3
 ### Utility Commands
 
 ```bash
-# List available Mistral models
-pdf-to-audio --list_models
-
 # List supported audio formats
 pdf-to-audio --list_audio_formats
 ```
@@ -213,77 +207,85 @@ general:
   force_cpu: false
 ```
 
-## Multi-Pass Refinement Pipeline
+## Multi-Stage LLM Processing Pipeline
 
-The tool includes a powerful multi-pass refinement system that post-processes content to optimize it for audio consumption. This pipeline is specifically designed to address challenges with mathematical content, technical abbreviations, citation clusters, complex tables, and dense academic writing style.
+The tool uses a powerful 4-stage LLM processing pipeline to transform PDF content into TTS-friendly text. Each stage can use a different LLM provider (Mistral, OpenAI, Anthropic, or other `any-llm` compatible providers) and model.
 
-### Refinement Passes
+### Processing Stages
 
-1. **Mathematical Content Refinement**: Converts mathematical notation to speech-friendly descriptions while preserving `<MATH></MATH>` tags.
+1. **Core Text Transformation**: Converts PDF markdown to TTS-friendly format, handles page chunking, encloses mathematical content with `<MATH>` tags, and creates verbalized references for equations, figures, and tables.
 
-2. **Structure and Citation Optimization**: Transforms citation clusters (e.g., `[1,2,3,4]`) into natural language references and converts complex tables into concise narrative descriptions.
+2. **Math Expression Handling**: Converts LaTeX and mathematical notation to spoken language while maintaining `<MATH>` tags. Handles powers, fractions, roots, integrals, summations, limits, derivatives, set notation, and Greek letters.
 
-3. **Language and Style Refinement**: Expands technical abbreviations (full form on first use), simplifies complex academic sentences while retaining meaning, and adds conversational elements for improved audio flow.
+3. **Citations/References Optimization**: Transforms citation formats for audio readability (e.g., `(Author et al., Year)` → "according to Author and others, Year").
 
-4. **Audio-Specific Optimization**: Ensures compatibility with Chatterbox TTS, adds optional section markers/navigation aids, and performs final cleanup for audio-friendly formatting.
+4. **Language/Style Refinement**: Removes `<MATH>` tags while keeping verbalized content, breaks complex sentences into shorter ones, and optimizes for audio pacing.
 
-### Controlling the Refinement Pipeline
+### Multi-Provider Support
 
-The multi-pass refinement pipeline is **enabled by default**. You can control the refinement process with various options:
+Each stage can independently use different LLM providers and models:
 
 ```bash
-# The refinement pipeline is enabled by default, no need to specify --enable_refinement
-pdf-to-audio input.pdf output.txt
+# Use OpenAI for text transformation, Mistral for math
+pdf-to-audio input.pdf output.txt \
+  --transform_provider openai --transform_model gpt-4-turbo \
+  --math_provider mistral --math_model mistral-large-latest
 
-# Disable the entire refinement pipeline
-pdf-to-audio input.pdf output.txt --disable_refinement
+# Use different providers for each stage
+pdf-to-audio input.pdf output.txt \
+  --transform_provider mistral --transform_model mistral-small-latest \
+  --math_provider openai --math_model gpt-3.5-turbo \
+  --citations_provider anthropic --citations_model claude-sonnet-3-5 \
+  --language_provider mistral --language_model mistral-large-latest
+```
 
-# Disable specific refinement passes
+### Controlling the Processing Pipeline
+
+You can enable or disable individual processing stages:
+
+```bash
+# Disable specific stages
 pdf-to-audio input.pdf output.txt --disable_math_refinement
-pdf-to-audio input.pdf output.txt --disable_structure_citation_optimization
-pdf-to-audio input.pdf output.txt --disable_language_style_refinement
-pdf-to-audio input.pdf output.txt --disable_audio_specific_optimization
+pdf-to-audio input.pdf output.txt --disable_citations_refinement
+pdf-to-audio input.pdf output.txt --disable_language_refinement
 
-# Adjust refinement intensity (0.0-1.0, default: 0.5)
-pdf-to-audio input.pdf output.txt --math_refinement_intensity 0.7
-pdf-to-audio input.pdf output.txt --structure_citation_intensity 0.3
-pdf-to-audio input.pdf output.txt --language_style_intensity 0.8
-pdf-to-audio input.pdf output.txt --audio_specific_intensity 0.6
-
-# Set target audience (academic or general)
-pdf-to-audio input.pdf output.txt --target_audience general
-
-# Combine multiple options
-pdf-to-audio input.pdf output.txt --math_refinement_intensity 0.8 --target_audience general --disable_structure_citation_optimization
+# Enable specific stages (enabled by default)
+pdf-to-audio input.pdf output.txt --enable_math_refinement --enable_citations_refinement
 ```
 
 ### Configuration File
 
-You can also configure the refinement pipeline in your YAML configuration file:
+You can configure the processing pipeline in your YAML configuration file:
 
 ```yaml
-# Refinement settings
-refinement:
-  # Master switch for the refinement pipeline
-  enable_refinement: true
-  
-  # Enable/disable specific refinement passes
+# LLM settings (provider-agnostic)
+llm:
+  temperature: 0.2
+
+  # Core text transformation
+  transform_provider: "mistral"
+  transform_model: "mistral-small-latest"
+
+  # Math expression handling
+  math_provider: "mistral"
+  math_model: "mistral-small-latest"
+
+  # Citations and references
+  citations_provider: "mistral"
+  citations_model: "mistral-small-latest"
+
+  # Language and style refinement
+  language_provider: "mistral"
+  language_model: "mistral-small-latest"
+
+  max_tokens: 4000
+
+# General settings
+general:
+  # Enable/disable specific LLM processing stages
   enable_math_refinement: true
-  enable_structure_citation_optimization: true
-  enable_language_style_refinement: true
-  enable_audio_specific_optimization: true
-  
-  # Intensity of each refinement pass (0.0-1.0)
-  math_refinement_intensity: 0.5
-  structure_citation_intensity: 0.5
-  language_style_intensity: 0.5
-  audio_specific_intensity: 0.5
-  
-  # Target audience for the refinement ("academic" or "general")
-  target_audience: "academic"
-  
-  # Whether to fall back to the original content if refinement fails
-  fallback_on_error: true
+  enable_citations_refinement: true
+  enable_language_refinement: true
 ```
 
 ## Mathematical Content Processing
@@ -315,29 +317,26 @@ By default, mathematical content is processed with TTS settings that are 75% of 
 - `--force_cpu`: Force using CPU for TTS even if GPU is available
 - `--voice_clone`: Path to a reference audio file for voice cloning (WAV, MP3, FLAC, M4A)
 
-#### Refinement Options
-- `--enable_refinement`: Explicitly enable the multi-pass refinement pipeline (enabled by default)
-- `--disable_refinement`: Disable the multi-pass refinement pipeline (overrides --enable_refinement)
-- `--enable_math_refinement`: Explicitly enable the mathematical content refinement pass (enabled by default)
-- `--disable_math_refinement`: Disable the mathematical content refinement pass (overrides --enable_math_refinement)
-- `--enable_structure_citation_optimization`: Explicitly enable the structure and citation optimization pass (enabled by default)
-- `--disable_structure_citation_optimization`: Disable the structure and citation optimization pass (overrides --enable_structure_citation_optimization)
-- `--enable_language_style_refinement`: Explicitly enable the language and style refinement pass (enabled by default)
-- `--disable_language_style_refinement`: Disable the language and style refinement pass (overrides --enable_language_style_refinement)
-- `--enable_audio_specific_optimization`: Explicitly enable the audio-specific optimization pass (enabled by default)
-- `--disable_audio_specific_optimization`: Disable the audio-specific optimization pass (overrides --enable_audio_specific_optimization)
-- `--math_refinement_intensity`: Intensity of the mathematical content refinement (0.0-1.0, default: 0.5)
-- `--structure_citation_intensity`: Intensity of the structure and citation optimization (0.0-1.0, default: 0.5)
-- `--language_style_intensity`: Intensity of the language and style refinement (0.0-1.0, default: 0.5)
-- `--audio_specific_intensity`: Intensity of the audio-specific optimization (0.0-1.0, default: 0.5)
-- `--target_audience`: Target audience for the refinement (academic or general, default: academic)
+#### LLM Provider Options
+- `--transform_provider`: LLM provider for core text transformation (default: mistral)
+- `--transform_model`: LLM model for core text transformation (default: mistral-small-latest)
+- `--math_provider`: LLM provider for math expression handling (default: mistral)
+- `--math_model`: LLM model for math expression handling (default: mistral-small-latest)
+- `--citations_provider`: LLM provider for citations/references (default: mistral)
+- `--citations_model`: LLM model for citations/references (default: mistral-small-latest)
+- `--language_provider`: LLM provider for language/style refinement (default: mistral)
+- `--language_model`: LLM model for language/style refinement (default: mistral-small-latest)
+- `--enable_math_refinement`: Enable mathematical content processing (default: True)
+- `--disable_math_refinement`: Disable mathematical content processing
+- `--enable_citations_refinement`: Enable citations/references processing (default: True)
+- `--disable_citations_refinement`: Disable citations/references processing
+- `--enable_language_refinement`: Enable language/style refinement (default: True)
+- `--disable_language_refinement`: Disable language/style refinement
 
 #### General Options
 - `--config_file`: Path to a YAML configuration file with custom settings
-- `--system_prompt`: Custom system prompt to override the default one
 - `--temp_dir`: Directory to use for temporary files
 - `--overwrite`: Overwrite output files if they exist
-- `--list_models`: List available Mistral models and exit
 - `--list_audio_formats`: List supported audio formats and exit
 - `--verbose`: Enable verbose output for debugging
 
@@ -462,14 +461,13 @@ pdf-to-audio document.pdf --output_audio cloned_voice_audio.mp3 --voice_clone my
 pdf-to-audio input.pdf --output_audio output.mp3 --force_cpu
 ```
 
-### Process a Document with Custom Refinement Settings
+### Process a Document with Custom LLM Provider Settings
 
 ```bash
 pdf-to-audio technical_paper.pdf --output_audio paper_audio.mp3 \
-  --math_refinement_intensity 0.8 \
-  --structure_citation_intensity 0.6 \
-  --language_style_intensity 0.4 \
-  --target_audience general
+  --transform_provider openai --transform_model gpt-4-turbo \
+  --math_provider mistral --math_model mistral-large-latest \
+  --citations_provider anthropic --citations_model claude-sonnet-3-5
 ```
 
 ## Troubleshooting
