@@ -99,30 +99,11 @@ general:
   
   # Enable verbose output for debugging
   verbose: false
-  
+
   # Force using CPU for TTS even if GPU is available
   force_cpu: false
 
-# Refinement settings
-refinement:
-  # Master switch for the refinement pipeline
-  enable_refinement: true
-  
-  # Enable/disable specific refinement passes
+  # Enable/disable specific LLM processing stages
   enable_math_refinement: true
-  enable_structure_citation_optimization: true
-  enable_language_style_refinement: true
-  enable_audio_specific_optimization: true
-  
-  # Intensity of each refinement pass (0.0-1.0)
-  # Higher values result in more aggressive refinement
-  math_refinement_intensity: 0.5
-  structure_citation_intensity: 0.5
-  language_style_intensity: 0.5
-  audio_specific_intensity: 0.5
-  
-  # Target audience for the refinement ("academic" or "general")
-  target_audience: "academic"
-  
-  # Whether to fall back to the original content if refinement fails
-  fallback_on_error: true
+  enable_citations_refinement: true
+  enable_language_refinement: true

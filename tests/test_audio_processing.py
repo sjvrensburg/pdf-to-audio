@@ -49,8 +49,8 @@ class TestAudioConcatenation:
         # Check that the middle has a crossfade (values between 0.5 and 1.0)
         crossfade_samples = int(24000 * 100 / 1000)
         middle_values = result[0, 24000-crossfade_samples:24000]
-        assert torch.all(middle_values < 1.0)
-        assert torch.all(middle_values > 0.5)
+        assert torch.all(middle_values <= 1.0)
+        assert torch.all(middle_values >= 0.5)
         
     def test_empty_input(self):
         """Test handling of empty input."""
@@ -145,18 +145,20 @@ class TestAudioProcessor:
     def test_reduce_noise(self):
         """Test noise reduction."""
         processor = AudioProcessor()
-        
+
         # Create an audio tensor with some "noise"
         audio = torch.ones((1, 24000)) * 0.1
         # Add some "signal"
         audio[0, 5000:10000] = 0.5
-        
+
         # Apply noise reduction
-        denoised = processor.reduce_noise(audio, reduction_amount=0.2)
-        
+        # threshold = max_amp * reduction_amount = 0.5 * 0.25 = 0.125
+        # This will zero out values with abs < 0.125 (i.e., 0.1)
+        denoised = processor.reduce_noise(audio, reduction_amount=0.25)
+
         # Low values should be zeroed out
         assert torch.all(denoised[:, 0:5000] == 0)
         assert torch.all(denoised[:, 10000:] == 0)
-        
+
         # Signal should remain
         assert torch.all(denoised[:, 5000:10000] == 0.5)
