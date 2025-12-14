@@ -54,13 +54,18 @@ def process_stage_in_chunks(
     Returns:
         The processed text
     """
-    # Check if the text is small enough to process in one go
-    estimated_tokens = len(text) // 4  # Rough estimate: 4 chars per token
+    # Use more conservative token estimation (3 chars per token instead of 4)
+    # This accounts for the fact that technical/academic text is more token-dense
+    estimated_tokens = len(text) // 3
 
-    if estimated_tokens <= max_tokens * 0.8:  # Use 80% threshold for safety
+    # Use a much more aggressive threshold (40% instead of 80%)
+    # This ensures we chunk more aggressively and don't hit output limits
+    safe_threshold = max_tokens * 0.4
+
+    if estimated_tokens <= safe_threshold:
         # Small enough to process in one API call
         if verbose:
-            print(f"  Processing in single call ({estimated_tokens} estimated tokens)")
+            print(f"  Processing in single call ({estimated_tokens} estimated tokens, threshold: {safe_threshold:.0f})")
 
         messages = [
             {"role": "system", "content": system_prompt},
@@ -77,7 +82,9 @@ def process_stage_in_chunks(
             return text
 
     # Text is too long, need to process in chunks
-    chunks = split_chunk(text, max_tokens=max_tokens)
+    # Use a smaller chunk size (2500 tokens instead of 4000) to ensure output fits
+    chunk_size = int(max_tokens * 0.625)  # 2500 tokens for 4000 max
+    chunks = split_chunk(text, max_tokens=chunk_size)
     total_chunks = len(chunks)
 
     if verbose:
